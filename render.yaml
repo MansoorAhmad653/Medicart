@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: medicart
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+    startCommand: "gunicorn medicart.wsgi"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: DJANGO_SETTINGS_MODULE
+        value: "medicart.settings"
+      - key: USE_SUPABASE
+        value: "True"
+      - key: DB_ENGINE
+        value: "django.db.backends.postgresql"
+      - key: DB_PORT
+        value: "6543"
+      - key: DB_NAME
+        fromDatabase:
+          name: postgres
+      - key: SECRET_KEY
+        generateValue: true
