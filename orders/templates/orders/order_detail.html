@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Order #{{ order.id }} — MediCart{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}">My Orders</a></li>
+                <li class="breadcrumb-item active">Order #{{ order.id }}</li>
+            </ol>
+        </nav>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <h1 class="page-title mb-0">Order #{{ order.id }}</h1>
+            <span class="order-status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+        </div>
+        <p class="page-sub">Placed on {{ order.created_at|date:"F d, Y at h:i A" }}</p>
+    </div>
+</div>
+
+<div class="container my-5">
+    {% if confirm_cancel %}
+    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+        <div>
+            <strong>Confirm Cancellation</strong><br>
+            Are you sure you want to cancel Order #{{ order.id }}?
+            <form method="post" action="{% url 'orders:cancel_order' order.pk %}" class="d-inline ms-3">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">Yes, Cancel Order</button>
+            </form>
+            <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary btn-sm ms-2">No, Keep Order</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Status Stepper -->
+    {% if order.status != 'cancelled' %}
+    <div class="status-stepper-card mb-4">
+        <div class="status-stepper">
+            {% with step=order.status_step %}
+            <div class="step-item {% if step >= 1 %}done{% endif %}">
+                <div class="step-circle"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="step-label">Confirmed</div>
+                {% if step == 1 %}<div class="step-active-dot"></div>{% endif %}
+            </div>
+            <div class="step-connector {% if step >= 2 %}done{% endif %}"></div>
+            <div class="step-item {% if step >= 2 %}done{% endif %}">
+                <div class="step-circle"><i class="bi bi-box-seam"></i></div>
+                <div class="step-label">Packed</div>
+            </div>
+            <div class="step-connector {% if step >= 3 %}done{% endif %}"></div>
+            <div class="step-item {% if step >= 3 %}done{% endif %}">
+                <div class="step-circle"><i class="bi bi-truck"></i></div>
+                <div class="step-label">Dispatched</div>
+            </div>
+            <div class="step-connector {% if step >= 4 %}done{% endif %}"></div>
+            <div class="step-item {% if step >= 4 %}done{% endif %}">
+                <div class="step-circle"><i class="bi bi-house-check"></i></div>
+                <div class="step-label">Delivered</div>
+            </div>
+            {% endwith %}
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-danger mb-4"><i class="bi bi-x-circle me-2"></i>This order has been cancelled.</div>
+    {% endif %}
+
+    <div class="row g-4">
+        <!-- Order Items -->
+        <div class="col-lg-8">
+            <div class="order-detail-card">
+                <h5 class="card-heading mb-4"><i class="bi bi-bag me-2"></i>Order Items</h5>
+                {% for item in order.items.all %}
+                <div class="order-detail-item">
+                    <div class="order-detail-img">
+                        {% if item.medicine and item.medicine.image %}
+                        <img src="{{ item.medicine.image.url }}" alt="{{ item.medicine.name }}">
+                        {% else %}
+                        <div class="cart-img-placeholder"><i class="bi bi-capsule-pill"></i></div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-600">{{ item.medicine.name|default:"Deleted Product" }}</div>
+                        {% if item.medicine %}<div class="text-muted small">{{ item.medicine.category.name|default:"" }}</div>{% endif %}
+                    </div>
+                    <div class="text-center">
+                        <div class="text-muted small">Qty</div>
+                        <div class="fw-600">{{ item.quantity }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">Price</div>
+                        <div class="fw-600">Rs. {{ item.price }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">Total</div>
+                        <div class="fw-600 text-primary">Rs. {{ item.item_total }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Summary & Info -->
+        <div class="col-lg-4">
+            <div class="order-summary-card mb-4">
+                <h6 class="summary-title"><i class="bi bi-receipt me-2"></i>Payment Summary</h6>
+                <div class="summary-row"><span>Subtotal</span><span>Rs. {{ order.get_subtotal }}</span></div>
+                <div class="summary-row"><span>Delivery Fee</span><span>Rs. {{ order.delivery_fee }}</span></div>
+                <hr>
+                <div class="summary-row total-row">
+                    <strong>Total Paid</strong>
+                    <strong class="text-primary">Rs. {{ order.total_price }}</strong>
+                </div>
+                <div class="mt-3 small text-muted"><i class="bi bi-cash-coin me-1"></i>Cash on Delivery</div>
+            </div>
+
+            <div class="delivery-info-card">
+                <h6 class="card-heading mb-3"><i class="bi bi-geo-alt me-2"></i>Delivery Address</h6>
+                <p class="text-muted mb-1">{{ order.delivery_address }}</p>
+                <p class="text-muted"><i class="bi bi-telephone me-1"></i>{{ order.phone }}</p>
+            </div>
+
+            <div class="d-flex gap-2 mt-4 flex-wrap">
+                <a href="{% url 'orders:track_order' order.pk %}" class="btn btn-primary flex-fill">
+                    <i class="bi bi-geo-alt me-1"></i>Track Order
+                </a>
+                {% if order.can_cancel %}
+                <a href="{% url 'orders:cancel_order' order.pk %}" class="btn btn-outline-danger flex-fill">
+                    <i class="bi bi-x me-1"></i>Cancel
+                </a>
+                {% endif %}
+                {% if order.status == 'delivered' %}
+                <a href="{% url 'feedback:submit' %}?order={{ order.pk }}" class="btn btn-outline-success w-100">
+                    <i class="bi bi-star me-1"></i>Leave a Review
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

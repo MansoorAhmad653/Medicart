@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Submit Feedback — MediCart{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title">Leave a Review</h1>
+        <p class="page-sub">Share your experience with us</p>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="feedback-card">
+                {% if order %}
+                <div class="feedback-context mb-4">
+                    <i class="bi bi-bag-check text-primary me-2"></i>
+                    Reviewing <strong>Order #{{ order.id }}</strong>
+                </div>
+                {% endif %}
+                {% if medicine %}
+                <div class="feedback-context mb-4">
+                    <i class="bi bi-capsule text-primary me-2"></i>
+                    Reviewing <strong>{{ medicine.name }}</strong>
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- Star Rating -->
+                    <div class="mb-4">
+                        <label class="form-label fw-600">Your Rating *</label>
+                        <div class="star-rating-widget">
+                            {% for i in "54321" %}
+                            <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" class="star-input" {% if forloop.first %}required{% endif %}>
+                            <label for="star{{ i }}" class="star-label" title="{{ i }} stars">
+                                <i class="bi bi-star-fill"></i>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <div class="star-labels d-flex justify-content-between mt-1">
+                            <small class="text-muted">Terrible</small>
+                            <small class="text-muted">Excellent</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-600">Your Comment *</label>
+                        {{ form.comment }}
+                        {% if form.comment.errors %}
+                        <div class="text-danger small">{{ form.comment.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 btn-lg">
+                        <i class="bi bi-send me-2"></i>Submit Review
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'shop:home' %}" class="text-muted small">
+                        <i class="bi bi-arrow-left me-1"></i>Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+.star-rating-widget {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 4px;
+}
+.star-input { display: none; }
+.star-label { font-size: 2rem; color: #ddd; cursor: pointer; transition: color 0.2s; }
+.star-label:hover,
+.star-label:hover ~ .star-label,
+.star-input:checked ~ .star-label { color: #ffc107; }
+</style>
+{% endblock %}

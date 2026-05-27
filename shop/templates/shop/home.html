@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}MediCart — Online Pharmacy & Medicine Delivery{% endblock %}
+{% block nav_home %}active{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="hero-bg"></div>
+    <div class="container position-relative">
+        <div class="row align-items-center min-vh-60">
+            <div class="col-lg-6">
+                <div class="hero-content">
+                    <div class="hero-badge mb-3">
+                        <i class="bi bi-shield-check me-1"></i> DRAP Licensed Pharmacy
+                    </div>
+                    <h1 class="hero-title">
+                        Your Health,<br>
+                        <span class="text-accent">Delivered Fast</span>
+                    </h1>
+                    <p class="hero-desc">
+                        Order genuine medicines online with prescription verification. 
+                        Free delivery on orders above Rs. 1,000. Available 7 days a week.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="{% url 'shop:medicine_list' %}" class="btn btn-hero-primary">
+                            <i class="bi bi-search me-2"></i>Shop Medicines
+                        </a>
+                        <a href="{% url 'prescriptions:upload' %}" class="btn btn-hero-outline">
+                            <i class="bi bi-file-medical me-2"></i>Upload Prescription
+                        </a>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat"><span class="stat-num">10K+</span><span class="stat-label">Happy Customers</span></div>
+                        <div class="stat-divider"></div>
+                        <div class="stat"><span class="stat-num">500+</span><span class="stat-label">Medicines</span></div>
+                        <div class="stat-divider"></div>
+                        <div class="stat"><span class="stat-num">2 Hrs</span><span class="stat-label">Fast Delivery</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 d-none d-lg-flex justify-content-center">
+                <div class="hero-illustration">
+                    <div class="hero-circle-1"></div>
+                    <div class="hero-circle-2"></div>
+                    <div class="hero-icon-grid">
+                        <div class="hero-icon-card"><i class="bi bi-capsule-pill"></i></div>
+                        <div class="hero-icon-card accent"><i class="bi bi-heart-pulse"></i></div>
+                        <div class="hero-icon-card"><i class="bi bi-thermometer-half"></i></div>
+                        <div class="hero-icon-card accent"><i class="bi bi-bandaid"></i></div>
+                        <div class="hero-icon-card large"><i class="bi bi-bag-heart"></i></div>
+                        <div class="hero-icon-card"><i class="bi bi-shield-plus"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Strip -->
+<section class="features-strip">
+    <div class="container">
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="feature-pill">
+                    <i class="bi bi-truck"></i>
+                    <div>
+                        <div class="fw-600">Fast Delivery</div>
+                        <small>Within 2 hours</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="feature-pill">
+                    <i class="bi bi-patch-check"></i>
+                    <div>
+                        <div class="fw-600">100% Genuine</div>
+                        <small>Verified medicines</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="feature-pill">
+                    <i class="bi bi-shield-lock"></i>
+                    <div>
+                        <div class="fw-600">Secure Payment</div>
+                        <small>Cash on Delivery</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="feature-pill">
+                    <i class="bi bi-headset"></i>
+                    <div>
+                        <div class="fw-600">24/7 Support</div>
+                        <small>Always available</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Categories -->
+<section class="section-pad">
+    <div class="container">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Browse Categories</h2>
+                <p class="section-sub">Find medicines by category</p>
+            </div>
+            <a href="{% url 'shop:medicine_list' %}" class="btn btn-outline-primary btn-sm">View All <i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+        <div class="row g-3">
+            {% for cat in categories %}
+            <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+                <a href="{% url 'shop:medicine_list' %}?category={{ cat.slug }}" class="category-card">
+                    <div class="category-icon"><i class="bi {{ cat.icon }}"></i></div>
+                    <div class="category-name">{{ cat.name }}</div>
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12"><p class="text-muted text-center">No categories yet.</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Featured Medicines -->
+<section class="section-pad bg-mint">
+    <div class="container">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Featured Medicines</h2>
+                <p class="section-sub">Top picks for you</p>
+            </div>
+            <a href="{% url 'shop:medicine_list' %}" class="btn btn-outline-primary btn-sm">View All <i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
+        <div class="row g-4">
+            {% for medicine in featured %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="medicine-card">
+                    <a href="{% url 'shop:medicine_detail' medicine.pk %}" class="medicine-img-wrap">
+                        {% if medicine.image %}
+                        <img src="{{ medicine.image.url }}" alt="{{ medicine.name }}" class="medicine-img">
+                        {% else %}
+                        <div class="medicine-img-placeholder">
+                            <i class="bi bi-capsule-pill"></i>
+                        </div>
+                        {% endif %}
+                        {% if medicine.requires_prescription %}
+                        <span class="rx-badge"><i class="bi bi-file-medical me-1"></i>Rx</span>
+                        {% endif %}
+                        {% if medicine.is_low_stock %}
+                        <span class="stock-badge warning">Low Stock</span>
+                        {% endif %}
+                    </a>
+                    <div class="medicine-body">
+                        <div class="medicine-category">{{ medicine.category.name|default:"General" }}</div>
+                        <a href="{% url 'shop:medicine_detail' medicine.pk %}" class="medicine-name">{{ medicine.name }}</a>
+                        <div class="medicine-bottom">
+                            <div class="medicine-price">Rs. {{ medicine.price }}</div>
+                            <form action="{% url 'shop:add_to_cart' medicine.pk %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="add-cart-btn" {% if not medicine.is_in_stock %}disabled{% endif %}>
+                                    {% if medicine.is_in_stock %}
+                                    <i class="bi bi-cart-plus"></i>
+                                    {% else %}
+                                    <i class="bi bi-x-circle"></i>
+                                    {% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-capsule display-4 text-muted"></i>
+                <p class="mt-3 text-muted">No medicines available yet.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Why MediCart -->
+<section class="section-pad">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="section-title">Why Choose MediCart?</h2>
+            <p class="section-sub mx-auto" style="max-width:500px">We combine technology and pharmacy expertise to give you the best healthcare experience</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="why-card">
+                    <div class="why-icon"><i class="bi bi-award"></i></div>
+                    <h5>Licensed Pharmacists</h5>
+                    <p>All orders are verified by our qualified pharmacists before dispatch.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="why-card featured">
+                    <div class="why-icon"><i class="bi bi-geo-alt"></i></div>
+                    <h5>Real-time Tracking</h5>
+                    <p>Track your order from confirmed to delivered with live status updates.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="why-card">
+                    <div class="why-icon"><i class="bi bi-lock"></i></div>
+                    <h5>Prescription Privacy</h5>
+                    <p>Your medical data is encrypted and never shared with third parties.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Banner -->
+{% if not user.is_authenticated %}
+<section class="cta-section">
+    <div class="container text-center">
+        <h2 class="cta-title">Ready to get started?</h2>
+        <p class="cta-sub">Join thousands of customers who trust MediCart for their medicine needs</p>
+        <a href="{% url 'users:signup' %}" class="btn btn-cta">Create Free Account <i class="bi bi-arrow-right ms-2"></i></a>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

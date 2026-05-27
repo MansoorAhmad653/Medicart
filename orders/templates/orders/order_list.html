@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}My Orders — MediCart{% endblock %}
+{% block nav_orders %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title">My Orders</h1>
+        <p class="page-sub">Track and manage your orders</p>
+    </div>
+</div>
+
+<div class="container my-5">
+    {% if orders %}
+    <div class="orders-list">
+        {% for order in orders %}
+        <div class="order-card">
+            <div class="order-card-header">
+                <div class="order-id">Order #{{ order.id }}</div>
+                <div class="order-date text-muted small"><i class="bi bi-calendar3 me-1"></i>{{ order.created_at|date:"M d, Y · h:i A" }}</div>
+                <div class="order-status-badge status-{{ order.status }}">
+                    {% if order.status == 'confirmed' %}<i class="bi bi-check-circle me-1"></i>
+                    {% elif order.status == 'packed' %}<i class="bi bi-box me-1"></i>
+                    {% elif order.status == 'dispatched' %}<i class="bi bi-truck me-1"></i>
+                    {% elif order.status == 'delivered' %}<i class="bi bi-check-all me-1"></i>
+                    {% else %}<i class="bi bi-x-circle me-1"></i>{% endif %}
+                    {{ order.get_status_display }}
+                </div>
+            </div>
+
+            <div class="order-items-preview">
+                {% for item in order.items.all|slice:":3" %}
+                <div class="order-item-chip">
+                    <span class="qty-badge">{{ item.quantity }}×</span>
+                    {{ item.medicine.name|default:"Deleted Item" }}
+                </div>
+                {% endfor %}
+                {% if order.items.count > 3 %}
+                <div class="order-item-chip more">+{{ order.items.count|add:"-3" }} more</div>
+                {% endif %}
+            </div>
+
+            <div class="order-card-footer">
+                <div class="order-total">
+                    <span class="text-muted small">Total:</span>
+                    <strong class="text-primary ms-1">Rs. {{ order.total_price }}</strong>
+                </div>
+                <div class="order-actions gap-2 d-flex">
+                    <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i>View Details
+                    </a>
+                    <a href="{% url 'orders:track_order' order.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-geo-alt me-1"></i>Track
+                    </a>
+                    {% if order.status == 'delivered' %}
+                    <a href="{% url 'feedback:submit' %}?order={{ order.pk }}" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-star me-1"></i>Review
+                    </a>
+                    {% endif %}
+                    {% if order.can_cancel %}
+                    <a href="{% url 'orders:cancel_order' order.pk %}" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-x me-1"></i>Cancel
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state text-center py-5">
+        <div class="empty-icon"><i class="bi bi-bag-x"></i></div>
+        <h3 class="mt-4">No orders yet</h3>
+        <p class="text-muted">You haven't placed any orders. Start shopping!</p>
+        <a href="{% url 'shop:medicine_list' %}" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-capsule me-2"></i>Browse Medicines
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Upload Prescription — MediCart{% endblock %}
+{% block nav_rx %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title">Upload Prescription</h1>
+        <p class="page-sub">Submit your prescription for pharmacist verification</p>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <div class="upload-card">
+                <h5 class="card-heading mb-4"><i class="bi bi-file-medical me-2"></i>Upload New Prescription</h5>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Prescription File *</label>
+                        <div class="file-upload-zone" id="uploadZone">
+                            <i class="bi bi-cloud-upload fs-2 text-primary"></i>
+                            <p class="mb-1 mt-2">Drag & drop or click to upload</p>
+                            <small class="text-muted">Supported: JPG, PNG, PDF (max 10MB)</small>
+                            {{ form.file }}
+                        </div>
+                        {% if form.file.errors %}<div class="text-danger small mt-1">{{ form.file.errors }}</div>{% endif %}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Notes for Pharmacist</label>
+                        {{ form.notes }}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload me-2"></i>Submit Prescription
+                    </button>
+                </form>
+            </div>
+
+            <!-- Info Box -->
+            <div class="info-box mt-4">
+                <h6><i class="bi bi-info-circle me-2 text-primary"></i>How It Works</h6>
+                <ol class="ps-3 small text-muted">
+                    <li class="mb-2">Upload your prescription (image or PDF)</li>
+                    <li class="mb-2">Our pharmacist will review within 30 minutes</li>
+                    <li class="mb-2">You'll get approval or rejection with notes</li>
+                    <li>Approved prescriptions allow ordering Rx medicines</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <h5 class="card-heading mb-4"><i class="bi bi-clock-history me-2"></i>My Prescriptions</h5>
+            {% if prescriptions %}
+            <div class="prescriptions-list">
+                {% for rx in prescriptions %}
+                <div class="rx-card">
+                    <div class="rx-file-preview">
+                        {% if rx.is_image %}
+                        <img src="{{ rx.file.url }}" alt="Prescription" class="rx-img">
+                        {% else %}
+                        <div class="rx-pdf-icon"><i class="bi bi-file-earmark-pdf"></i><span>PDF</span></div>
+                        {% endif %}
+                    </div>
+                    <div class="rx-info flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="rx-status-badge status-{{ rx.status }}">
+                                {% if rx.status == 'pending' %}<i class="bi bi-clock me-1"></i>
+                                {% elif rx.status == 'approved' %}<i class="bi bi-check-circle me-1"></i>
+                                {% else %}<i class="bi bi-x-circle me-1"></i>{% endif %}
+                                {{ rx.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="text-muted small"><i class="bi bi-calendar me-1"></i>{{ rx.uploaded_at|date:"M d, Y · h:i A" }}</div>
+                        {% if rx.notes %}<div class="text-muted small mt-1"><i class="bi bi-chat me-1"></i>{{ rx.notes|truncatechars:60 }}</div>{% endif %}
+                        {% if rx.admin_notes %}
+                        <div class="mt-2 p-2 rounded {% if rx.status == 'approved' %}bg-success-light{% else %}bg-danger-light{% endif %}">
+                            <small><i class="bi bi-person-badge me-1"></i><strong>Pharmacist Note:</strong> {{ rx.admin_notes }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <a href="{{ rx.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2 align-self-start">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state text-center py-5">
+                <div class="empty-icon"><i class="bi bi-file-medical"></i></div>
+                <h5 class="mt-3">No prescriptions uploaded</h5>
+                <p class="text-muted small">Upload your prescription to order prescription medicines</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

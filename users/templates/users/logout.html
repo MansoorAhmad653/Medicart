@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Logging Out — MediCart{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-80">
+            <div class="col-md-5 col-lg-4">
+                <div class="auth-card">
+                    <div class="auth-header text-center">
+                        <div class="auth-icon"><i class="bi bi-box-arrow-right text-muted"></i></div>
+                        <h3>Logging Out...</h3>
+                        <p class="text-muted">Please wait while we log you out.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+<div class="container mt-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Supabase configuration
+const SUPABASE_URL = 'https://ugtawlcsphxjbgarowjm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVndGF3bGNzcGh4amJnYXJvd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDk5MzgsImV4cCI6MjA5NTI4NTkzOH0.j2oGUVWjeLGea7CBwlRHeWxxkUDM2XghIM4b6rSXQHs';
+const { createClient } = supabase;
+
+// Initialize Supabase client
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function clearSupabaseSession() {
+    try {
+        // Sign out from Supabase (clears localStorage session)
+        const { error } = await supabaseClient.auth.signOut();
+        if (error) {
+            console.error('Error signing out from Supabase:', error);
+        } else {
+            console.log('Supabase session cleared successfully');
+        }
+    } catch (err) {
+        console.error('Exception during Supabase sign out:', err);
+    } finally {
+        // Redirect to login page after 1 second
+        setTimeout(() => {
+            window.location.href = '{% url "users:login" %}';
+        }, 1000);
+    }
+}
+
+// Clear Supabase session on page load
+document.addEventListener('DOMContentLoaded', clearSupabaseSession);
+</script>
+
+<style>
+.auth-page {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.min-vh-80 {
+    min-height: 80vh;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    padding: 40px;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    border-radius: 50%;
+    font-size: 28px;
+}
+</style>
+{% endblock %}

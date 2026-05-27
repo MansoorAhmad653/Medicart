@@ -1,0 +1,202 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MediCart — Online Pharmacy{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-light sticky-top" id="mainNav">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'shop:home' %}">
+            <div class="brand-logo">
+                <div class="brand-icon"><i class="bi bi-heart-pulse-fill"></i></div>
+                <div class="brand-text">
+                    <span class="brand-name">Medi<span class="accent">Cart</span></span>
+                    <span class="brand-tagline">Your Health Partner</span>
+                </div>
+            </div>
+        </a>
+
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto ms-4">
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_home %}{% endblock %}" href="{% url 'shop:home' %}">
+                        <i class="bi bi-house me-1"></i>Home
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_medicines %}{% endblock %}" href="{% url 'shop:medicine_list' %}">
+                        <i class="bi bi-capsule me-1"></i>Medicines
+                    </a>
+                </li>
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_orders %}{% endblock %}" href="{% url 'orders:order_list' %}">
+                        <i class="bi bi-bag me-1"></i>My Orders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% block nav_rx %}{% endblock %}" href="{% url 'prescriptions:upload' %}">
+                        <i class="bi bi-file-medical me-1"></i>Prescriptions
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="navbar-right d-flex align-items-center gap-3">
+                <!-- Cart -->
+                <a href="{% url 'shop:cart' %}" class="cart-btn">
+                    <i class="bi bi-cart3"></i>
+                    {% if cart_count > 0 %}
+                    <span class="cart-badge">{{ cart_count }}</span>
+                    {% endif %}
+                </a>
+
+                {% if user.is_authenticated %}
+                <!-- User Menu -->
+                <div class="dropdown">
+                    <button class="user-btn dropdown-toggle" data-bs-toggle="dropdown">
+                        <div class="user-avatar">{{ user.name|first|default:user.email|first|upper }}</div>
+                        <span class="d-none d-md-inline">{{ user.name|default:user.email|truncatechars:15 }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
+                        <li><div class="dropdown-header">
+                            <div class="fw-600">{{ user.name|default:"User" }}</div>
+                            <small class="text-muted">{{ user.email }}</small>
+                        </div></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'users:profile' %}"><i class="bi bi-person me-2"></i>Profile</a></li>
+                        <li><a class="dropdown-item" href="{% url 'orders:order_list' %}"><i class="bi bi-bag me-2"></i>My Orders</a></li>
+                        <li><a class="dropdown-item" href="{% url 'prescriptions:upload' %}"><i class="bi bi-file-medical me-2"></i>Prescriptions</a></li>
+                        {% if user.is_staff or user.role == 'admin' %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-primary" href="{% url 'dashboard:admin_dashboard' %}"><i class="bi bi-speedometer2 me-2"></i>Admin Dashboard</a></li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{% url 'users:logout' %}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+                {% else %}
+                <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary btn-sm me-2">Admin</a>
+                <a href="{% url 'users:login' %}" class="btn btn-outline-primary btn-sm">Login</a>
+                <a href="{% url 'users:signup' %}" class="btn btn-primary btn-sm">Sign Up</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Messages -->
+{% if messages %}
+<div class="messages-container">
+    <div class="container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+            {% if message.tags == 'success' %}<i class="bi bi-check-circle-fill"></i>
+            {% elif message.tags == 'error' or message.tags == 'danger' %}<i class="bi bi-exclamation-circle-fill"></i>
+            {% elif message.tags == 'warning' %}<i class="bi bi-exclamation-triangle-fill"></i>
+            {% else %}<i class="bi bi-info-circle-fill"></i>{% endif %}
+            {{ message }}
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Main Content -->
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+<!-- Footer -->
+<footer class="site-footer">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="footer-brand">
+                    <div class="brand-logo mb-3">
+                        <div class="brand-icon"><i class="bi bi-heart-pulse-fill"></i></div>
+                        <div class="brand-text">
+                            <span class="brand-name text-white">Medi<span class="accent">Cart</span></span>
+                        </div>
+                    </div>
+                    <p class="text-light opacity-75 small">Your trusted online pharmacy. We deliver quality medicines right to your doorstep, safely and swiftly.</p>
+                    <div class="social-links mt-3">
+                        <a href="#" class="social-link"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="social-link"><i class="bi bi-twitter-x"></i></a>
+                        <a href="#" class="social-link"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="bi bi-whatsapp"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-6">
+                <h6 class="footer-heading">Quick Links</h6>
+                <ul class="footer-links">
+                    <li><a href="{% url 'shop:home' %}">Home</a></li>
+                    <li><a href="{% url 'shop:medicine_list' %}">Medicines</a></li>
+                    <li><a href="{% url 'admin:index' %}">Admin</a></li>
+                    {% if user.is_authenticated %}
+                    <li><a href="{% url 'orders:order_list' %}">My Orders</a></li>
+                    <li><a href="{% url 'prescriptions:upload' %}">Upload Prescription</a></li>
+                    {% else %}
+                    <li><a href="{% url 'users:login' %}">Login</a></li>
+                    <li><a href="{% url 'users:signup' %}">Sign Up</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <h6 class="footer-heading">Customer Care</h6>
+                <ul class="footer-links">
+                    <li><a href="#">FAQs</a></li>
+                    <li><a href="#">Return Policy</a></li>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms & Conditions</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <h6 class="footer-heading">Contact Us</h6>
+                <ul class="footer-contact">
+                    <li><i class="bi bi-geo-alt"></i> Rawalpindi, Punjab, Pakistan</li>
+                    <li><i class="bi bi-telephone"></i> +92 300 1234567</li>
+                    <li><i class="bi bi-envelope"></i> support@medicart.pk</li>
+                    <li><i class="bi bi-clock"></i> Mon–Sat: 9 AM – 9 PM</li>
+                </ul>
+                <div class="mt-3">
+                    <span class="badge-pill-outline me-1"><i class="bi bi-shield-check me-1"></i>Verified Pharmacy</span>
+                    <span class="badge-pill-outline"><i class="bi bi-award me-1"></i>DRAP Licensed</span>
+                </div>
+            </div>
+        </div>
+        <hr class="footer-divider">
+        <div class="row">
+            <div class="col-md-6 text-center text-md-start">
+                <small class="text-light opacity-50">&copy; 2024 MediCart. All rights reserved.</small>
+            </div>
+            <div class="col-md-6 text-center text-md-end">
+                <small class="text-light opacity-50">Made with <i class="bi bi-heart-fill text-danger"></i> for better health</small>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{% static 'js/main.js' %}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

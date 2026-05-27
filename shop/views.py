@@ -1,0 +1,213 @@
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.db.models import Q
+from .models import Medicine, Category
+from .forms import CheckoutForm
+from feedback.models import Feedback
+
+DELIVERY_FEE = 150
+
+
+def home(request):
+    featured = Medicine.objects.filter(is_active=True, stock_quantity__gt=0)[:8]
+    categories = Category.objects.all()
+    return render(request, 'shop/home.html', {
+        'featured': featured,
+        'categories': categories,
+    })
+
+
+def medicine_list(request):
+    medicines = Medicine.objects.filter(is_active=True)
+    categories = Category.objects.all()
+
+    query = request.GET.get('q', '')
+    category_slug = request.GET.get('category', '')
+    min_price = request.GET.get('min_price', '')
+    max_price = request.GET.get('max_price', '')
+    prescription = request.GET.get('prescription', '')
+
+    if query:
+        medicines = medicines.filter(Q(name__icontains=query) | Q(description__icontains=query))
+    if category_slug:
+        medicines = medicines.filter(category__slug=category_slug)
+    if min_price:
+        try:
+            medicines = medicines.filter(price__gte=float(min_price))
+        except ValueError:
+            pass
+    if max_price:
+        try:
+            medicines = medicines.filter(price__lte=float(max_price))
+        except ValueError:
+            pass
+    if prescription == 'yes':
+        medicines = medicines.filter(requires_prescription=True)
+    elif prescription == 'no':
+        medicines = medicines.filter(requires_prescription=False)
+
+    selected_category = None
+    if category_slug:
+        selected_category = Category.objects.filter(slug=category_slug).first()
+
+    return render(request, 'shop/medicine_list.html', {
+        'medicines': medicines,
+        'categories': categories,
+        'query': query,
+        'category_slug': category_slug,
+        'min_price': min_price,
+        'max_price': max_price,
+        'prescription': prescription,
+        'selected_category': selected_category,
+    })
+
+
+def medicine_detail(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk, is_active=True)
+    reviews = Feedback.objects.filter(medicine=medicine).select_related('user').order_by('-created_at')
+    avg_rating = 0
+    if reviews.exists():
+        avg_rating = sum(r.rating for r in reviews) / reviews.count()
+    return render(request, 'shop/medicine_detail.html', {
+        'medicine': medicine,
+        'reviews': reviews,
+        'avg_rating': round(avg_rating, 1),
+    })
+
+
+def cart_view(request):
+    cart = request.session.get('cart', {})
+    cart_items = []
+    subtotal = 0
+
+    for med_id, item in cart.items():
+        try:
+            medicine = Medicine.objects.get(pk=int(med_id))
+            item_total = medicine.price * item['quantity']
+            subtotal += item_total
+            cart_items.append({
+                'medicine': medicine,
+                'quantity': item['quantity'],
+                'item_total': item_total,
+            })
+        except Medicine.DoesNotExist:
+            pass
+
+    total = subtotal + DELIVERY_FEE if cart_items else 0
+    return render(request, 'shop/cart.html', {
+        'cart_items': cart_items,
+        'subtotal': subtotal,
+        'delivery_fee': DELIVERY_FEE,
+        'total': total,
+    })
+
+
+def add_to_cart(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk, is_active=True)
+    cart = request.session.get('cart', {})
+    med_id = str(pk)
+
+    if medicine.requires_prescription and not request.user.is_authenticated:
+        messages.warning(request, 'Please login to add prescription medicines to cart.')
+        return redirect('users:login')
+
+    if med_id in cart:
+        if cart[med_id]['quantity'] < medicine.stock_quantity:
+            cart[med_id]['quantity'] += 1
+            messages.success(request, f'Updated {medicine.name} quantity in cart.')
+        else:
+            messages.warning(request, f'Sorry, only {medicine.stock_quantity} units available.')
+    else:
+        cart[med_id] = {'quantity': 1, 'name': medicine.name, 'price': str(medicine.price)}
+        messages.success(request, f'{medicine.name} added to cart!')
+
+    request.session['cart'] = cart
+    request.session.modified = True
+    return redirect(request.META.get('HTTP_REFERER', 'shop:cart'))
+
+
+def update_cart(request, pk):
+    med_id = str(pk)
+    cart = request.session.get('cart', {})
+    action = request.POST.get('action')
+
+    if med_id in cart:
+        if action == 'increase':
+            medicine = get_object_or_404(Medicine, pk=pk)
+            if cart[med_id]['quantity'] < medicine.stock_quantity:
+                cart[med_id]['quantity'] += 1
+        elif action == 'decrease':
+            cart[med_id]['quantity'] -= 1
+            if cart[med_id]['quantity'] <= 0:
+                del cart[med_id]
+                messages.info(request, 'Item removed from cart.')
+        elif action == 'remove':
+            del cart[med_id]
+            messages.info(request, 'Item removed from cart.')
+
+    request.session['cart'] = cart
+    request.session.modified = True
+    return redirect('shop:cart')
+
+
+def checkout_view(request):
+    cart = request.session.get('cart', {})
+    if not cart:
+        messages.warning(request, 'Your cart is empty.')
+        return redirect('shop:cart')
+
+    if not request.user.is_authenticated:
+        messages.info(request, 'Please login to proceed with checkout.')
+        return redirect('users:login')
+
+    cart_items = []
+    subtotal = 0
+    for med_id, item in cart.items():
+        try:
+            medicine = Medicine.objects.get(pk=int(med_id))
+            item_total = medicine.price * item['quantity']
+            subtotal += item_total
+            cart_items.append({'medicine': medicine, 'quantity': item['quantity'], 'item_total': item_total})
+        except Medicine.DoesNotExist:
+            pass
+
+    total = subtotal + DELIVERY_FEE
+
+    if request.method == 'POST':
+        form = CheckoutForm(request.POST, user=request.user)
+        if form.is_valid():
+            from orders.models import Order, OrderItem
+            order = Order.objects.create(
+                user=request.user,
+                delivery_address=form.cleaned_data['delivery_address'],
+                phone=form.cleaned_data['phone'],
+                total_price=total,
+                delivery_fee=DELIVERY_FEE,
+            )
+            for item in cart_items:
+                OrderItem.objects.create(
+                    order=order,
+                    medicine=item['medicine'],
+                    quantity=item['quantity'],
+                    price=item['medicine'].price,
+                )
+                item['medicine'].stock_quantity -= item['quantity']
+                item['medicine'].save()
+
+            request.session['cart'] = {}
+            request.session.modified = True
+            messages.success(request, f'Order #{order.id} placed successfully! We will deliver it soon.')
+            return redirect('orders:order_detail', pk=order.pk)
+    else:
+        initial = {}
+        if request.user.is_authenticated:
+            initial = {'delivery_address': request.user.address, 'phone': request.user.phone}
+        form = CheckoutForm(user=request.user, initial=initial)
+
+    return render(request, 'shop/checkout.html', {
+        'form': form,
+        'cart_items': cart_items,
+        'subtotal': subtotal,
+        'delivery_fee': DELIVERY_FEE,
+        'total': total,
+    })

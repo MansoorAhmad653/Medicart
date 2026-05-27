@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard — MediCart{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div>
+                <h1 class="page-title">Admin Dashboard</h1>
+                <p class="page-sub">Welcome back, {{ user.name|default:user.email }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/admin/" class="btn btn-outline-primary btn-sm"><i class="bi bi-gear me-1"></i>Django Admin</a>
+                <a href="{% url 'shop:medicine_list' %}" class="btn btn-primary btn-sm"><i class="bi bi-eye me-1"></i>View Store</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container my-5">
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card primary">
+                <div class="stat-icon"><i class="bi bi-bag-check"></i></div>
+                <div class="stat-number">{{ total_orders }}</div>
+                <div class="stat-label">Total Orders</div>
+                <div class="stat-trend"><i class="bi bi-arrow-up-right"></i> All time</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card success">
+                <div class="stat-icon"><i class="bi bi-currency-rupee"></i></div>
+                <div class="stat-number">{{ total_revenue|floatformat:0 }}</div>
+                <div class="stat-label">Revenue (Rs.)</div>
+                <div class="stat-trend"><i class="bi bi-arrow-up-right"></i> Excluding cancellations</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card warning">
+                <div class="stat-icon"><i class="bi bi-file-medical"></i></div>
+                <div class="stat-number">{{ pending_prescriptions }}</div>
+                <div class="stat-label">Pending Rx</div>
+                <div class="stat-trend"><i class="bi bi-clock"></i> Awaiting review</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card danger">
+                <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+                <div class="stat-number">{{ low_stock }}</div>
+                <div class="stat-label">Low Stock</div>
+                <div class="stat-trend"><i class="bi bi-arrow-down"></i> ≤10 units</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <!-- Weekly Chart -->
+        <div class="col-lg-8">
+            <div class="dashboard-card">
+                <div class="card-heading-row">
+                    <h5><i class="bi bi-bar-chart-line me-2"></i>Weekly Orders</h5>
+                    <span class="text-muted small">Last 7 days</span>
+                </div>
+                <div style="height:260px">
+                    <canvas id="ordersChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="col-lg-4">
+            <div class="dashboard-card">
+                <h5 class="card-heading-row"><i class="bi bi-people me-2"></i>Quick Stats</h5>
+                <div class="quick-stat-list">
+                    <div class="quick-stat">
+                        <div class="quick-stat-label">Total Customers</div>
+                        <div class="quick-stat-value">{{ total_users }}</div>
+                    </div>
+                    <div class="quick-stat">
+                        <div class="quick-stat-label">Total Medicines</div>
+                        <div class="quick-stat-value">{{ medicines|length }}</div>
+                    </div>
+                    <div class="quick-stat">
+                        <div class="quick-stat-label">Pending Prescriptions</div>
+                        <div class="quick-stat-value text-warning">{{ pending_prescriptions }}</div>
+                    </div>
+                    <div class="quick-stat">
+                        <div class="quick-stat-label">Low Stock Items</div>
+                        <div class="quick-stat-value text-danger">{{ low_stock }}</div>
+                    </div>
+                </div>
+                <a href="/admin/prescriptions/prescription/?status=pending" class="btn btn-warning w-100 mt-3 btn-sm">
+                    <i class="bi bi-file-medical me-1"></i>Review Prescriptions
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="dashboard-card mb-5">
+        <div class="card-heading-row mb-3">
+            <h5><i class="bi bi-clock-history me-2"></i>Recent Orders</h5>
+            <span class="text-muted small">Last 20 orders</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table admin-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Total</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Update Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td><a href="{% url 'orders:order_detail' order.pk %}" class="fw-600 text-primary">#{{ order.id }}</a></td>
+                        <td>
+                            <div class="fw-500">{{ order.user.name|default:order.user.email }}</div>
+                            <small class="text-muted">{{ order.user.email }}</small>
+                        </td>
+                        <td class="fw-600">Rs. {{ order.total_price }}</td>
+                        <td><small class="text-muted">{{ order.created_at|date:"M d, Y" }}</small></td>
+                        <td><span class="order-status-badge status-{{ order.status }}">{{ order.get_status_display }}</span></td>
+                        <td>
+                            <form method="post" class="d-flex gap-2 align-items-center">
+                                {% csrf_token %}
+                                <input type="hidden" name="order_id" value="{{ order.pk }}">
+                                <select name="status" class="form-select form-select-sm" style="width:130px">
+                                    {% for val, label in status_choices %}
+                                    <option value="{{ val }}" {% if order.status == val %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">No orders yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Inventory -->
+    <div class="dashboard-card">
+        <div class="card-heading-row mb-3">
+            <h5><i class="bi bi-boxes me-2"></i>Inventory Overview</h5>
+            <a href="/admin/shop/medicine/" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Manage Inventory
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table admin-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Medicine</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for med in medicines %}
+                    <tr class="{% if med.stock_quantity == 0 %}table-danger{% elif med.is_low_stock %}table-warning{% endif %}">
+                        <td>
+                            <div class="fw-500">{{ med.name }}</div>
+                            {% if med.requires_prescription %}<span class="badge bg-teal-light text-primary small">Rx</span>{% endif %}
+                        </td>
+                        <td>{{ med.category.name|default:"—" }}</td>
+                        <td class="fw-500">Rs. {{ med.price }}</td>
+                        <td>
+                            <div class="stock-indicator">
+                                <div class="stock-bar {% if med.stock_quantity == 0 %}empty{% elif med.is_low_stock %}low{% else %}good{% endif %}"
+                                     style="width: {% if med.stock_quantity > 100 %}100{% else %}{{ med.stock_quantity }}{% endif %}%"></div>
+                            </div>
+                            <small>{{ med.stock_quantity }} units</small>
+                        </td>
+                        <td>
+                            {% if med.stock_quantity == 0 %}
+                            <span class="badge bg-danger">Out of Stock</span>
+                            {% elif med.is_low_stock %}
+                            <span class="badge bg-warning text-dark">Low Stock</span>
+                            {% else %}
+                            <span class="badge bg-success">In Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="/admin/shop/medicine/{{ med.pk }}/change/" class="btn btn-sm btn-outline-primary" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'shop:medicine_detail' med.pk %}" class="btn btn-sm btn-outline-secondary" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">No medicines yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ctx = document.getElementById('ordersChart').getContext('2d');
+const labels = {{ week_labels|safe }};
+const data = {{ week_data|safe }};
+
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: labels,
+        datasets: [{
+            label: 'Orders',
+            data: data,
+            backgroundColor: 'rgba(15, 110, 86, 0.15)',
+            borderColor: '#0F6E56',
+            borderWidth: 2,
+            borderRadius: 8,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#0F6E56',
+                callbacks: {
+                    label: ctx => ` ${ctx.parsed.y} order${ctx.parsed.y !== 1 ? 's' : ''}`
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { stepSize: 1, precision: 0 },
+                grid: { color: 'rgba(0,0,0,0.05)' }
+            },
+            x: { grid: { display: false } }
+        }
+    }
+});
+</script>
+{% endblock %}

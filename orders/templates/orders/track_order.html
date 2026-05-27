@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Track Order #{{ order.id }} — MediCart{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}">My Orders</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'orders:order_detail' order.pk %}">Order #{{ order.id }}</a></li>
+                <li class="breadcrumb-item active">Track</li>
+            </ol>
+        </nav>
+        <h1 class="page-title">Track Order #{{ order.id }}</h1>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="track-card">
+                <div class="track-header">
+                    <div>
+                        <div class="text-muted small">Current Status</div>
+                        <span class="order-status-badge status-{{ order.status }} fs-6">{{ order.get_status_display }}</span>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">Order Date</div>
+                        <div class="fw-500">{{ order.created_at|date:"M d, Y" }}</div>
+                    </div>
+                </div>
+
+                {% if order.status != 'cancelled' %}
+                <!-- Vertical Timeline -->
+                <div class="track-timeline">
+                    {% with step=order.status_step %}
+
+                    <div class="timeline-item {% if step >= 1 %}done{% endif %} {% if step == 1 %}active{% endif %}">
+                        <div class="timeline-dot"><i class="bi bi-check-circle-fill"></i></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">Order Confirmed</div>
+                            <div class="timeline-desc">Your order has been received and confirmed by our team.</div>
+                            {% if step >= 1 %}<div class="timeline-time text-muted small">{{ order.created_at|date:"M d, Y · h:i A" }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="timeline-item {% if step >= 2 %}done{% endif %} {% if step == 2 %}active{% endif %}">
+                        <div class="timeline-dot"><i class="bi bi-box-seam"></i></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">Order Packed</div>
+                            <div class="timeline-desc">Your medicines have been carefully packed and verified.</div>
+                            {% if step >= 2 %}<div class="timeline-time text-muted small">Packed</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="timeline-item {% if step >= 3 %}done{% endif %} {% if step == 3 %}active{% endif %}">
+                        <div class="timeline-dot"><i class="bi bi-truck"></i></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">Out for Delivery</div>
+                            <div class="timeline-desc">Your order is on its way to your delivery address.</div>
+                            {% if step >= 3 %}<div class="timeline-time text-muted small">Dispatched</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="timeline-item {% if step >= 4 %}done{% endif %} {% if step == 4 %}active{% endif %}">
+                        <div class="timeline-dot"><i class="bi bi-house-check"></i></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">Delivered</div>
+                            <div class="timeline-desc">Your order has been delivered successfully. Enjoy!</div>
+                            {% if step >= 4 %}<div class="timeline-time text-muted small">Delivered</div>{% endif %}
+                        </div>
+                    </div>
+
+                    {% endwith %}
+                </div>
+                {% else %}
+                <div class="alert alert-danger mt-3"><i class="bi bi-x-circle me-2"></i>This order was cancelled.</div>
+                {% endif %}
+
+                <div class="delivery-info-card mt-4">
+                    <h6 class="mb-2"><i class="bi bi-geo-alt me-2"></i>Delivering to:</h6>
+                    <p class="mb-1 text-muted">{{ order.delivery_address }}</p>
+                    <p class="mb-0 text-muted"><i class="bi bi-telephone me-1"></i>{{ order.phone }}</p>
+                </div>
+
+                <div class="mt-4 d-flex gap-2">
+                    <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-primary flex-fill">View Details</a>
+                    <a href="{% url 'orders:order_list' %}" class="btn btn-primary flex-fill">All Orders</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
