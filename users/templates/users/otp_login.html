@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+{% block title %}OTP Login — MediCart{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-80">
+            <div class="col-md-5 col-lg-4">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <div class="auth-icon"><i class="bi bi-heart-pulse-fill"></i></div>
+                        <h2>Welcome to MediCart</h2>
+                        <p>Login with OTP - Choose your method</p>
+                    </div>
+
+                    <!-- Gmail Login Button -->
+                    <div class="mb-3">
+                        <button type="button" onclick="loginWithGmail()" class="btn btn-outline-danger w-100 btn-lg">
+                            <i class="bi bi-google me-2"></i>Login with Gmail
+                        </button>
+                    </div>
+
+                    <div class="divider my-3 text-center">
+                        <span class="text-muted">Or login with OTP</span>
+                    </div>
+
+                    <!-- Email/Phone Toggle Tabs -->
+                    <ul class="nav nav-tabs mb-3" id="otpTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="email-tab" data-bs-toggle="tab" data-bs-target="#email-pane" type="button" role="tab">
+                                <i class="bi bi-envelope me-2"></i>Email
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="phone-tab" data-bs-toggle="tab" data-bs-target="#phone-pane" type="button" role="tab">
+                                <i class="bi bi-telephone me-2"></i>Phone
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="otpTabContent">
+                        <!-- Email OTP -->
+                        <div class="tab-pane fade show active" id="email-pane" role="tabpanel">
+                            <form id="emailOtpForm" class="auth-form">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label">Email Address</label>
+                                    <input type="email" class="form-control form-control-lg" id="emailInput" placeholder="your@email.com" required>
+                                </div>
+                                <button type="button" onclick="sendEmailOtp()" class="btn btn-primary w-100 btn-lg">
+                                    <i class="bi bi-send me-2"></i>Send OTP
+                                </button>
+                            </form>
+                            <div id="emailOtpVerify" style="display:none;">
+                                <div class="mb-3">
+                                    <label class="form-label">Enter OTP sent to your email</label>
+                                    <input type="text" class="form-control form-control-lg" id="emailOtpInput" placeholder="000000" maxlength="6" required>
+                                    <small class="text-muted">6-digit OTP</small>
+                                </div>
+                                <button type="button" onclick="verifyEmailOtp()" class="btn btn-success w-100 btn-lg">
+                                    <i class="bi bi-check-circle me-2"></i>Verify OTP
+                                </button>
+                                <button type="button" onclick="backToEmailForm()" class="btn btn-outline-secondary w-100 mt-2">
+                                    Back
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Phone OTP -->
+                        <div class="tab-pane fade" id="phone-pane" role="tabpanel">
+                            <form id="phoneOtpForm" class="auth-form">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control form-control-lg" id="phoneInput" placeholder="+92XXXXXXXXXX" required>
+                                    <small class="text-muted">Include country code (e.g., +92 for Pakistan)</small>
+                                </div>
+                                <button type="button" onclick="sendPhoneOtp()" class="btn btn-primary w-100 btn-lg">
+                                    <i class="bi bi-send me-2"></i>Send OTP
+                                </button>
+                            </form>
+                            <div id="phoneOtpVerify" style="display:none;">
+                                <div class="mb-3">
+                                    <label class="form-label">Enter OTP sent to your phone</label>
+                                    <input type="text" class="form-control form-control-lg" id="phoneOtpInput" placeholder="000000" maxlength="6" required>
+                                    <small class="text-muted">6-digit OTP</small>
+                                </div>
+                                <button type="button" onclick="verifyPhoneOtp()" class="btn btn-success w-100 btn-lg">
+                                    <i class="bi bi-check-circle me-2"></i>Verify OTP
+                                </button>
+                                <button type="button" onclick="backToPhoneForm()" class="btn btn-outline-secondary w-100 mt-2">
+                                    Back
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="auth-footer">
+                        <p>Already have password login? <a href="{% url 'users:login' %}">Traditional Login</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.divider {
+    position: relative;
+    line-height: 1em;
+}
+.divider span {
+    background-color: white;
+    padding: 0 10px;
+    position: relative;
+    z-index: 1;
+}
+.divider::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 100%;
+    height: 1px;
+    background-color: #ddd;
+    z-index: 0;
+}
+.nav-tabs .nav-link {
+    color: #666;
+    border: none;
+    border-bottom: 3px solid transparent;
+}
+.nav-tabs .nav-link.active {
+    color: #dc3545;
+    border-bottom-color: #dc3545;
+}
+</style>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Supabase configuration
+const SUPABASE_URL = 'https://ugtawlcsphxjbgarowjm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVndGF3bGNzcGh4amJnYXJvd2ptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDk5MzgsImV4cCI6MjA5NTI4NTkzOH0.j2oGUVWjeLGea7CBwlRHeWxxkUDM2XghIM4b6rSXQHs';
+const { createClient } = supabase;
+
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Gmail Login
+async function loginWithGmail() {
+    try {
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin + '/users/otp-login/'
+            }
+        });
+        
+        if (error) {
+            alert('Gmail login failed: ' + error.message);
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        alert('An error occurred: ' + err.message);
+    }
+}
+
+// Email OTP Functions
+async function sendEmailOtp() {
+    const email = document.getElementById('emailInput').value;
+    
+    if (!email) {
+        alert('Please enter your email');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/users/send-otp/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                contact: email,
+                type: 'email'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('OTP sent to ' + email);
+            document.getElementById('emailOtpForm').style.display = 'none';
+            document.getElementById('emailOtpVerify').style.display = 'block';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to send OTP'));
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        alert('An error occurred: ' + err.message);
+    }
+}
+
+async function verifyEmailOtp() {
+    const email = document.getElementById('emailInput').value;
+    const otp = document.getElementById('emailOtpInput').value;
+    
+    if (!otp || otp.length !== 6) {
+        alert('Please enter a valid 6-digit OTP');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/users/verify-otp/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                contact: email,
+                otp: otp,
+                type: 'email'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert(data.message);
+            window.location.href = data.redirect || '/shop/';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to verify OTP'));
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        alert('An error occurred: ' + err.message);
+    }
+}
+
+function backToEmailForm() {
+    document.getElementById('emailOtpForm').style.display = 'block';
+    document.getElementById('emailOtpVerify').style.display = 'none';
+    document.getElementById('emailOtpInput').value = '';
+}
+
+// Phone OTP Functions
+async function sendPhoneOtp() {
+    const phone = document.getElementById('phoneInput').value;
+    
+    if (!phone) {
+        alert('Please enter your phone number');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/users/send-otp/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                contact: phone,
+                type: 'phone'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('OTP sent to ' + phone);
+            document.getElementById('phoneOtpForm').style.display = 'none';
+            document.getElementById('phoneOtpVerify').style.display = 'block';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to send OTP'));
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        alert('An error occurred: ' + err.message);
+    }
+}
+
+async function verifyPhoneOtp() {
+    const phone = document.getElementById('phoneInput').value;
+    const otp = document.getElementById('phoneOtpInput').value;
+    
+    if (!otp || otp.length !== 6) {
+        alert('Please enter a valid 6-digit OTP');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/users/verify-otp/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                contact: phone,
+                otp: otp,
+                type: 'phone'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            alert(data.message);
+            window.location.href = data.redirect || '/shop/';
+        } else {
+            alert('Error: ' + (data.error || 'Failed to verify OTP'));
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        alert('An error occurred: ' + err.message);
+    }
+}
+
+function backToPhoneForm() {
+    document.getElementById('phoneOtpForm').style.display = 'block';
+    document.getElementById('phoneOtpVerify').style.display = 'none';
+    document.getElementById('phoneOtpInput').value = '';
+}
+
+// Helper function to get CSRF token
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+// Gmail OAuth detection
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session?.user?.email) {
+        fetch('/users/auth-callback/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ email: session.user.email })
+        }).then(res => res.json()).then(data => {
+            if (data.success) {
+                window.location.href = '/shop/';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

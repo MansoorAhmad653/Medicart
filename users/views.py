@@ -44,6 +44,13 @@ def login_view(request):
     return render(request, 'users/login.html', {'form': form})
 
 
+def otp_login_view(request):
+    """OTP-based login page"""
+    if request.user.is_authenticated:
+        return redirect('shop:home')
+    return render(request, 'users/otp_login.html')
+
+
 def logout_view(request):
     logout(request)
     messages.info(request, 'You have been logged out successfully.')
@@ -121,6 +128,125 @@ def auth_callback(request):
             return JsonResponse({'error': str(e)}, status=500)
         messages.error(request, 'An error occurred during authentication.')
         return redirect('users:login')
+
+
+@require_http_methods(["POST"])
+def send_otp_view(request):
+    """Send OTP to email or phone number"""
+    try:
+        data = json.loads(request.body)
+        contact = data.get('contact')  # email or phone
+        contact_type = data.get('type')  # 'email' or 'phone'
+        
+        if not contact or not contact_type:
+            return JsonResponse({'error': 'Missing contact or type'}, status=400)
+        
+        if contact_type == 'email':
+            # Send email OTP via Supabase
+            response = supabase.auth.sign_in_with_otp({
+                'email': contact,
+                'options': {
+                    'email_redirect_to': f"{request.build_absolute_uri('/users/verify-otp/')}"
+                }
+            })
+            return JsonResponse({
+                'success': True,
+                'message': f'OTP sent to {contact}. Check your email.',
+                'session_id': response.session.id if response.session else None
+            })
+        
+        elif contact_type == 'phone':
+            # Send phone OTP via Supabase
+            response = supabase.auth.sign_in_with_otp({
+                'phone': contact,
+            })
+            return JsonResponse({
+                'success': True,
+                'message': f'OTP sent to {contact}. Check your SMS.',
+                'session_id': response.session.id if response.session else None
+            })
+        
+        else:
+            return JsonResponse({'error': 'Invalid contact type'}, status=400)
+    
+    except Exception as e:
+        print(f"OTP send error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["POST"])
+def verify_otp_view(request):
+    """Verify OTP and create/login user"""
+    try:
+        data = json.loads(request.body)
+        contact = data.get('contact')  # email or phone
+        otp = data.get('otp')
+        contact_type = data.get('type')  # 'email' or 'phone'
+        
+        if not contact or not otp or not contact_type:
+            return JsonResponse({'error': 'Missing contact, OTP, or type'}, status=400)
+        
+        # Verify OTP with Supabase
+        try:
+            response = supabase.auth.verify_otp({
+                'email' if contact_type == 'email' else 'phone': contact,
+                'token': otp,
+                'type': 'sms' if contact_type == 'phone' else 'email'
+            })
+            
+            if not response.user:
+                return JsonResponse({'error': 'Invalid OTP'}, status=400)
+            
+            # Get user email or phone
+            user_email = response.user.email or (contact if contact_type == 'email' else None)
+            user_phone = response.user.phone or (contact if contact_type == 'phone' else None)
+            
+            # Create/get Django user
+            from .models import CustomUser
+            
+            # Try to find user by email first, then by phone
+            user = None
+            if user_email:
+                user = CustomUser.objects.filter(email=user_email).first()
+            elif user_phone:
+                user = CustomUser.objects.filter(phone=user_phone).first()
+            
+            is_new = False
+            if not user:
+                # Create new user
+                username = user_email.split('@')[0] if user_email else f"user_{user_phone}"
+                
+                # Ensure unique username
+                counter = 1
+                original_username = username
+                while CustomUser.objects.filter(username=username).exists():
+                    username = f"{original_username}{counter}"
+                    counter += 1
+                
+                user = CustomUser.objects.create(
+                    email=user_email or '',
+                    phone=user_phone or '',
+                    username=username,
+                    is_active=True
+                )
+                is_new = True
+            
+            # Login the user
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Account created and logged in!' if is_new else 'Logged in successfully!',
+                'redirect': '/shop/'
+            })
+        
+        except Exception as otp_error:
+            print(f"OTP verification error: {otp_error}")
+            return JsonResponse({'error': 'Invalid OTP or expired'}, status=400)
+    
+    except Exception as e:
+        print(f"OTP verify error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required
