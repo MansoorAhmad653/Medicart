@@ -137,8 +137,9 @@ CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Security Settings for Production
+# NOTE: Railway already handles SSL at proxy level, so don't force redirect
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    # SECURE_SSL_REDIRECT = True  # DISABLED - Railway handles SSL
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -148,3 +149,4 @@ if not DEBUG:
         'style-src': ("'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'),
         'img-src': ("'self'", 'data:', 'https:'),
     }
+
