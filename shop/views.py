@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Prefetch
+from django.core.paginator import Paginator
 from .models import Medicine, Category
 from .forms import CheckoutForm
 from feedback.models import Feedback
@@ -9,7 +10,12 @@ DELIVERY_FEE = 150
 
 
 def home(request):
-    featured = Medicine.objects.filter(is_active=True, stock_quantity__gt=0)[:8]
+    # Use select_related to avoid N+1 queries
+    featured = Medicine.objects.filter(
+        is_active=True, 
+        stock_quantity__gt=0
+    ).select_related('category')[:8]
+    
     categories = Category.objects.all()
     return render(request, 'shop/home.html', {
         'featured': featured,
@@ -18,7 +24,7 @@ def home(request):
 
 
 def medicine_list(request):
-    medicines = Medicine.objects.filter(is_active=True)
+    medicines = Medicine.objects.filter(is_active=True).select_related('category')
     categories = Category.objects.all()
 
     query = request.GET.get('q', '')
@@ -46,12 +52,17 @@ def medicine_list(request):
     elif prescription == 'no':
         medicines = medicines.filter(requires_prescription=False)
 
+    # Add pagination (12 items per page)
+    paginator = Paginator(medicines, 12)
+    page_number = request.GET.get('page', 1)
+    medicines_page = paginator.get_page(page_number)
+
     selected_category = None
     if category_slug:
         selected_category = Category.objects.filter(slug=category_slug).first()
 
     return render(request, 'shop/medicine_list.html', {
-        'medicines': medicines,
+        'medicines': medicines_page,
         'categories': categories,
         'query': query,
         'category_slug': category_slug,
@@ -59,11 +70,13 @@ def medicine_list(request):
         'max_price': max_price,
         'prescription': prescription,
         'selected_category': selected_category,
+        'paginator': paginator,
+        'page_obj': medicines_page,
     })
 
 
 def medicine_detail(request, pk):
-    medicine = get_object_or_404(Medicine, pk=pk, is_active=True)
+    medicine = get_object_or_404(Medicine.objects.select_related('category'), pk=pk, is_active=True)
     reviews = Feedback.objects.filter(medicine=medicine).select_related('user').order_by('-created_at')
     avg_rating = 0
     if reviews.exists():
@@ -80,18 +93,21 @@ def cart_view(request):
     cart_items = []
     subtotal = 0
 
-    for med_id, item in cart.items():
-        try:
-            medicine = Medicine.objects.get(pk=int(med_id))
-            item_total = medicine.price * item['quantity']
-            subtotal += item_total
-            cart_items.append({
-                'medicine': medicine,
-                'quantity': item['quantity'],
-                'item_total': item_total,
-            })
-        except Medicine.DoesNotExist:
-            pass
+    # Batch load all medicines at once instead of individual queries
+    if cart:
+        medicine_ids = [int(med_id) for med_id in cart.keys()]
+        medicines = Medicine.objects.filter(pk__in=medicine_ids).in_bulk()
+        
+        for med_id, item in cart.items():
+            medicine = medicines.get(int(med_id))
+            if medicine:
+                item_total = medicine.price * item['quantity']
+                subtotal += item_total
+                cart_items.append({
+                    'medicine': medicine,
+                    'quantity': item['quantity'],
+                    'item_total': item_total,
+                })
 
     total = subtotal + DELIVERY_FEE if cart_items else 0
     return render(request, 'shop/cart.html', {
@@ -162,14 +178,17 @@ def checkout_view(request):
 
     cart_items = []
     subtotal = 0
+    
+    # Batch load all medicines instead of individual queries
+    medicine_ids = [int(med_id) for med_id in cart.keys()]
+    medicines = Medicine.objects.filter(pk__in=medicine_ids).in_bulk() if medicine_ids else {}
+    
     for med_id, item in cart.items():
-        try:
-            medicine = Medicine.objects.get(pk=int(med_id))
+        medicine = medicines.get(int(med_id))
+        if medicine:
             item_total = medicine.price * item['quantity']
             subtotal += item_total
             cart_items.append({'medicine': medicine, 'quantity': item['quantity'], 'item_total': item_total})
-        except Medicine.DoesNotExist:
-            pass
 
     total = subtotal + DELIVERY_FEE
 
@@ -184,6 +203,8 @@ def checkout_view(request):
                 total_price=total,
                 delivery_fee=DELIVERY_FEE,
             )
+            # Batch update medicines
+            bulk_update_items = []
             for item in cart_items:
                 OrderItem.objects.create(
                     order=order,
@@ -192,7 +213,10 @@ def checkout_view(request):
                     price=item['medicine'].price,
                 )
                 item['medicine'].stock_quantity -= item['quantity']
-                item['medicine'].save()
+                bulk_update_items.append(item['medicine'])
+            
+            # Batch update all medicines at once
+            Medicine.objects.bulk_update(bulk_update_items, ['stock_quantity'], batch_size=100)
 
             request.session['cart'] = {}
             request.session.modified = True

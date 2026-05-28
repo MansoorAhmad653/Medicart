@@ -6,13 +6,16 @@ from .models import Order
 
 @login_required
 def order_list(request):
-    orders = Order.objects.filter(user=request.user).prefetch_related('items__medicine')
+    # Use select_related for better performance
+    orders = Order.objects.filter(user=request.user).prefetch_related(
+        'items__medicine'
+    ).order_by('-created_at')
     return render(request, 'orders/order_list.html', {'orders': orders})
 
 
 @login_required
 def order_detail(request, pk):
-    order = get_object_or_404(Order, pk=pk, user=request.user)
+    order = get_object_or_404(Order.objects.prefetch_related('items__medicine'), pk=pk, user=request.user)
     return render(request, 'orders/order_detail.html', {'order': order})
 
 
@@ -31,11 +34,16 @@ def cancel_order(request, pk):
     if request.method == 'POST':
         order.status = 'cancelled'
         order.save()
-        # Restore stock
+        # Restore stock using batch update
+        bulk_update_items = []
         for item in order.items.all():
             if item.medicine:
                 item.medicine.stock_quantity += item.quantity
-                item.medicine.save()
+                bulk_update_items.append(item.medicine)
+        
+        from shop.models import Medicine
+        Medicine.objects.bulk_update(bulk_update_items, ['stock_quantity'], batch_size=100)
+        
         messages.success(request, f'Order #{order.id} has been cancelled successfully.')
         return redirect('orders:order_list')
     return render(request, 'orders/order_detail.html', {'order': order, 'confirm_cancel': True})
