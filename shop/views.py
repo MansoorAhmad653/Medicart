@@ -81,10 +81,51 @@ def medicine_detail(request, pk):
     avg_rating = 0
     if reviews.exists():
         avg_rating = sum(r.rating for r in reviews) / reviews.count()
+    
+    # Check prescription status if medicine requires prescription
+    prescription_status = None
+    can_buy = True
+    if medicine.requires_prescription:
+        can_buy = False
+        if request.user.is_authenticated:
+            from prescriptions.models import Prescription
+            prescription = Prescription.objects.filter(
+                user=request.user,
+                medicines=medicine,
+                status='approved'
+            ).first()
+            
+            if prescription:
+                can_buy = True
+                prescription_status = {'status': 'approved', 'message': 'Prescription approved! You can add this to cart.'}
+            else:
+                # Check if user has any prescription for this medicine (pending/rejected)
+                pending = Prescription.objects.filter(
+                    user=request.user,
+                    medicines=medicine,
+                    status='pending'
+                ).first()
+                
+                if pending:
+                    prescription_status = {'status': 'pending', 'message': 'Your prescription is pending approval. Please wait.'}
+                else:
+                    rejected = Prescription.objects.filter(
+                        user=request.user,
+                        medicines=medicine,
+                        status='rejected'
+                    ).first()
+                    
+                    if rejected:
+                        prescription_status = {'status': 'rejected', 'message': f'Prescription rejected. Admin notes: {rejected.admin_notes}', 'prescription_id': rejected.id}
+                    else:
+                        prescription_status = {'status': 'no_prescription', 'message': 'Please upload a valid prescription to buy this medicine.'}
+    
     return render(request, 'shop/medicine_detail.html', {
         'medicine': medicine,
         'reviews': reviews,
         'avg_rating': round(avg_rating, 1),
+        'prescription_status': prescription_status,
+        'can_buy': can_buy,
     })
 
 
@@ -123,9 +164,23 @@ def add_to_cart(request, pk):
     cart = request.session.get('cart', {})
     med_id = str(pk)
 
-    if medicine.requires_prescription and not request.user.is_authenticated:
-        messages.warning(request, 'Please login to add prescription medicines to cart.')
-        return redirect('users:login')
+    # Check if medicine requires prescription
+    if medicine.requires_prescription:
+        if not request.user.is_authenticated:
+            messages.warning(request, 'Please login to add prescription medicines to cart.')
+            return redirect('users:login')
+        
+        # Check if user has approved prescription for this medicine
+        from prescriptions.models import Prescription
+        approved_prescription = Prescription.objects.filter(
+            user=request.user,
+            medicines=medicine,
+            status='approved'
+        ).first()
+        
+        if not approved_prescription:
+            messages.error(request, 'You do not have an approved prescription for this medicine. Please upload your prescription and wait for approval.')
+            return redirect('shop:medicine_detail', pk=pk)
 
     if med_id in cart:
         if cart[med_id]['quantity'] < medicine.stock_quantity:
