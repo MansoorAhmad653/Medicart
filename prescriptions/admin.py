@@ -83,9 +83,7 @@ class PrescriptionAdmin(admin.ModelAdmin):
                 count,
                 's' if count != 1 else ''
             )
-        return format_html(
-            '<span style="color: #999;">—</span>'
-        )
+        return '—'
     medicine_count.short_description = 'Medicines'
     
     def uploaded_date(self, obj):
