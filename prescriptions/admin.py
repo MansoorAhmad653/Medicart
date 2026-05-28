@@ -20,7 +20,8 @@ class PrescriptionAdmin(admin.ModelAdmin):
             'fields': ('file', 'file_preview_large')
         }),
         ('Approval', {
-            'fields': ('status', 'medicines', 'admin_notes')
+            'fields': ('status', 'medicines', 'admin_notes'),
+            'description': '✅ <strong>To approve:</strong> Set Status to "Approved" and select medicines from the "Medicines" field. The medicines selected here determine which prescription medicines the customer can add to cart.'
         }),
         ('Timestamps', {
             'fields': ('uploaded_at', 'updated_at'),
@@ -128,6 +129,16 @@ class PrescriptionAdmin(admin.ModelAdmin):
                 file_url
             )
     file_preview_large.short_description = 'Document Preview'
+    
+    def save_model(self, request, obj, form, change):
+        """Override save_model to add validation and helpful messages"""
+        # If approving a prescription, ensure medicines are selected
+        if obj.status == 'approved':
+            if not obj.medicines.exists():
+                from django.contrib import messages
+                messages.warning(request, '⚠️ No medicines were assigned to this approved prescription. Please select medicines from the "Medicines" field.')
+        
+        super().save_model(request, obj, form, change)
     
     def get_queryset(self, request):
         qs = super().get_queryset(request)
