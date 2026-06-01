@@ -68,21 +68,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'medicart.wsgi.application'
 
 # Database Configuration - PostgreSQL/Supabase Only
+_db_host = os.getenv('DB_HOST', 'localhost')
+_db_options = {
+    'connect_timeout': 10,
+    'options': '-c default_transaction_isolation=read_committed',
+}
+# Only require SSL when connecting to a remote host (not localhost/127.0.0.1)
+if _db_host not in ('localhost', '127.0.0.1', ''):
+    _db_options['sslmode'] = 'require'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME', 'postgres'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'HOST': _db_host,
         'PORT': os.getenv('DB_PORT', '5432'),
-        'OPTIONS': {
-            'sslmode': 'require',
-            'connect_timeout': 10,
-            'options': '-c default_transaction_isolation=read_committed'
-        },
-        'CONN_MAX_AGE': 600,  # Connection pooling - keep connections alive for 10 minutes
-        'ATOMIC_REQUESTS': False,  # Disable atomic requests for better concurrency
+        'OPTIONS': _db_options,
+        'CONN_MAX_AGE': 0,  # No persistent connections in serverless environments
+        'ATOMIC_REQUESTS': False,
     }
 }
 
@@ -98,8 +103,8 @@ CACHES = {
     }
 }
 
-# Session optimization
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+# Session optimization — use DB backend in production (serverless), cache for local dev
+SESSION_ENGINE = os.getenv('SESSION_ENGINE', 'django.contrib.sessions.backends.cache')
 SESSION_CACHE_ALIAS = 'default'
 
 AUTH_USER_MODEL = 'users.CustomUser'
@@ -118,7 +123,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Allow overriding via env var so Netlify build can place files inside public/static/
+STATIC_ROOT = BASE_DIR / os.getenv('STATIC_ROOT_DIR', 'staticfiles')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -133,6 +139,10 @@ MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
 # CORS Configuration (for API access from different origins)
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:8000').split(',')
+
+# CSRF trusted origins — required in Django 4.x for non-localhost domains
+_csrf_origins = os.getenv('CSRF_TRUSTED_ORIGINS', 'https://*.netlify.app')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
 
 # WhiteNoise Configuration (for serving static files in production)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
