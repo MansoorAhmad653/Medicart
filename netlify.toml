@@ -1,0 +1,19 @@
+[build]
+  command = "pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput"
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  DJANGO_SETTINGS_MODULE = "medicart.settings"
+  PYTHON_VERSION = "3.11"
+  DEBUG = "False"
+  # Direct collectstatic output into public/static so Netlify CDN serves it
+  STATIC_ROOT_DIR = "public/static"
+  # Use DB-backed sessions in production (survives across function invocations)
+  SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/django"
+  status = 200
+  force = false
