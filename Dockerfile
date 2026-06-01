@@ -3,6 +3,7 @@ FROM python:3.13-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
 
 # Set work directory
 WORKDIR /app
@@ -32,4 +33,4 @@ RUN python manage.py collectstatic --noinput --clear || true
 EXPOSE 8000
 
 # Run migrations and start server
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn medicart.wsgi --bind 0.0.0.0:${PORT:-8000}"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn medicart.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 4 --timeout 120"]
