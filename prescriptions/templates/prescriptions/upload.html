@@ -79,8 +79,11 @@
                         </div>
                         {% endif %}
                     </div>
-                    <a href="{{ rx.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2 align-self-start">
+                    <a href="{{ rx.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary ms-2 align-self-start" title="View Prescription">
                         <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="{% url 'prescriptions:delete' rx.pk %}" class="btn btn-sm btn-outline-danger ms-1 align-self-start" onclick="return confirm('Are you sure you want to delete this prescription?');" title="Delete Prescription">
+                        <i class="bi bi-trash"></i>
                     </a>
                 </div>
                 {% endfor %}

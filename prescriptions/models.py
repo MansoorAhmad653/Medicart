@@ -42,3 +42,15 @@ class Prescription(models.Model):
         if self.status == 'approved':
             # Automatically confirm any pending orders associated with this prescription
             self.orders.filter(status='pending_prescription').update(status='confirmed')
+
+
+# Signals to auto-delete file from filesystem when prescription is deleted
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=Prescription)
+def auto_delete_file_on_delete(sender, instance, **kwargs):
+    """Deletes file from storage when corresponding Prescription object is deleted."""
+    if instance.file:
+        instance.file.delete(save=False)
+

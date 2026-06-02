@@ -40,24 +40,25 @@ def upload_prescription(request):
 @login_required
 def delete_prescription(request, pk):
     """Delete a prescription file"""
-    prescription = get_object_or_404(Prescription, pk=pk, user=request.user)
-    
-    if prescription.status != 'pending':
-        messages.error(request, 'You can only delete pending prescriptions.')
-        return redirect('prescriptions:upload')
+    # Staff/admins can delete any prescription; regular users can only delete their own
+    if request.user.is_staff or getattr(request.user, 'role', '') == 'admin':
+        prescription = get_object_or_404(Prescription, pk=pk)
+    else:
+        prescription = get_object_or_404(Prescription, pk=pk, user=request.user)
     
     try:
-        # Delete the file
-        if prescription.file:
-            prescription.file.delete()
-        
-        # Delete the prescription record
+        # The post_delete signal auto_delete_file_on_delete will automatically handle prescription.file.delete()
         prescription.delete()
         messages.success(request, 'Prescription deleted successfully.')
     except Exception as e:
         messages.error(request, f'Error deleting prescription: {str(e)}')
     
+    # Redirect back to previous page if available, else to upload page
+    referer = request.META.get('HTTP_REFERER')
+    if referer and ('/admin/' in referer or '/dashboard/' in referer):
+        return redirect(referer)
     return redirect('prescriptions:upload')
+
 
 
 @login_required
