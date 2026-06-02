@@ -33,6 +33,7 @@ def upload_prescription(request):
         'approved_prescriptions': approved_prescriptions,
         'rejected_prescriptions': rejected_prescriptions,
         'all_prescriptions': prescriptions,
+        'prescriptions': prescriptions,
     })
 
 
