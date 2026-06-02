@@ -77,15 +77,15 @@ def send_otp_email(email, otp, purpose='registration'):
     Returns (success: bool, error_message: str or None)
     """
     if purpose == 'registration':
-        subject = 'MediCart — Verify Your Email Address'
+        subject = 'MediCart - Verify Your Email Address'
         heading = 'Email Verification'
         message = 'Thank you for signing up with MediCart! Use the code below to verify your email address.'
-        icon = '🔐'
+        icon = '&#128274;'
     else:
-        subject = 'MediCart — Password Reset Code'
+        subject = 'MediCart - Password Reset Code'
         heading = 'Password Reset'
         message = 'We received a request to reset your password. Use the code below to proceed.'
-        icon = '🔑'
+        icon = '&#128273;'
 
     html_body = f"""
     <!DOCTYPE html>
@@ -133,7 +133,7 @@ def send_otp_email(email, otp, purpose='registration'):
                                     If you didn't request this code, you can safely ignore this email.
                                 </p>
                                 <p style="color:#bbb; font-size:12px; text-align:center; margin:8px 0 0;">
-                                    &copy; 2024 MediCart — Your Health Partner
+                                    &copy; 2024 MediCart - Your Health Partner
                                 </p>
                             </td>
                         </tr>
