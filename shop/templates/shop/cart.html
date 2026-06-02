@@ -33,8 +33,8 @@
                 <div class="cart-item">
                     <div class="cart-item-product">
                         <div class="cart-item-img">
-                            {% if item.medicine.image %}
-                            <img src="{{ item.medicine.image.url }}" alt="{{ item.medicine.name }}">
+                            {% if item.medicine.name %}
+                            <span>{{ item.medicine.name }}</span>
                             {% else %}
                             <div class="cart-img-placeholder"><i class="bi bi-capsule-pill"></i></div>
                             {% endif %}

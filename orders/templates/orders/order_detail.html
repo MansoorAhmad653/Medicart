@@ -74,8 +74,8 @@
                 {% for item in order.items.all %}
                 <div class="order-detail-item">
                     <div class="order-detail-img">
-                        {% if item.medicine and item.medicine.image %}
-                        <img src="{{ item.medicine.image.url }}" alt="{{ item.medicine.name }}">
+                        {% if item.medicine and item.medicine.name %}
+                        <span>{{ item.medicine.name }}</span>
                         {% else %}
                         <div class="cart-img-placeholder"><i class="bi bi-capsule-pill"></i></div>
                         {% endif %}

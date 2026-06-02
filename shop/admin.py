@@ -41,20 +41,9 @@ class MedicineAdmin(admin.ModelAdmin):
             'fields': ('is_active', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
-        ('Media', {
-            'fields': ('image',),
-            'classes': ('collapse',)
-        }),
     )
     
     def medicine_name(self, obj):
-        if obj.image:
-            return format_html(
-                '<img src="{}" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 3px;"/>'
-                '<strong>{}</strong>',
-                obj.image.url,
-                obj.name
-            )
         return format_html('<strong>{}</strong>', obj.name)
     medicine_name.short_description = 'Medicine'
     
