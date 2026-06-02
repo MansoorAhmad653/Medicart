@@ -91,6 +91,11 @@ def send_otp_email(email, otp, purpose='registration'):
         heading = 'Email Verification'
         message = 'Thank you for signing up with MediCart! Use the code below to verify your email address.'
         icon = '&#128274;'
+    elif purpose == 'otp_login':
+        subject = 'MediCart - OTP Login Code'
+        heading = 'OTP Login'
+        message = 'Use the code below to login to your MediCart account.'
+        icon = '&#128274;'
     else:
         subject = 'MediCart - Password Reset Code'
         heading = 'Password Reset'

@@ -36,6 +36,7 @@ def signup_view(request):
 
             if not success:
                 print(f"Failed to send OTP email: {error}")
+                messages.warning(request, f"Unable to send verification email: {error}. However, you can retrieve your verification OTP code from the 'latest_otp.txt' file in your project directory.")
 
             # Store email in session for verification page
             request.session['pending_otp_email'] = signup_data['email']
@@ -137,6 +138,7 @@ def auth_callback(request):
 
             if not success:
                 print(f"Failed to send OTP email: {error_msg}")
+                messages.warning(request, f"Unable to send verification email: {error_msg}. However, you can retrieve your verification OTP code from the 'latest_otp.txt' file in your project directory.")
             
             # Store email in session for verification page
             request.session['pending_otp_email'] = email
@@ -188,10 +190,10 @@ def send_otp_view(request):
             # Generate and send OTP via Resend
             otp = generate_otp()
             store_otp_in_session(request, contact, otp, purpose='otp_login')
-            success, error = send_otp_email(contact, otp, purpose='registration')
+            success, error = send_otp_email(contact, otp, purpose='otp_login')
 
             if not success:
-                return JsonResponse({'error': f'Failed to send OTP: {error}'}, status=500)
+                return JsonResponse({'error': f'Failed to send OTP email: {error}. However, for development, you can find the login OTP in the "latest_otp.txt" file in the project directory.'}, status=500)
 
             return JsonResponse({
                 'success': True,
@@ -429,7 +431,7 @@ def resend_registration_otp_view(request):
         success, error = send_otp_email(email, otp, purpose='registration')
 
         if not success:
-            return JsonResponse({'error': f'Failed to send OTP: {error}'}, status=500)
+            return JsonResponse({'error': f'Failed to send OTP email: {error}. However, you can find the verification OTP in the "latest_otp.txt" file in the project directory.'}, status=500)
 
         return JsonResponse({
             'success': True,
@@ -472,7 +474,7 @@ def forgot_password_send_otp(request):
         success, error = send_otp_email(email, otp, purpose='password_reset')
 
         if not success:
-            return JsonResponse({'error': f'Failed to send OTP: {error}'}, status=500)
+            return JsonResponse({'error': f'Failed to send OTP email: {error}. However, you can find the password reset OTP in the "latest_otp.txt" file in the project directory.'}, status=500)
 
         # Store email in session
         request.session['reset_password_email'] = email
@@ -583,7 +585,7 @@ def forgot_password_resend_otp(request):
         success, error = send_otp_email(email, otp, purpose='password_reset')
 
         if not success:
-            return JsonResponse({'error': f'Failed to send OTP: {error}'}, status=500)
+            return JsonResponse({'error': f'Failed to send OTP email: {error}. However, you can find the password reset OTP in the "latest_otp.txt" file in the project directory.'}, status=500)
 
         return JsonResponse({
             'success': True,
