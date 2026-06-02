@@ -98,9 +98,8 @@ CACHES = {
     }
 }
 
-# Session optimization
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+# Session configuration - database-backed to persist across restarts/reloads
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 AUTH_USER_MODEL = 'users.CustomUser'
 
