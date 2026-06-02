@@ -1,0 +1,522 @@
+{% extends 'base.html' %}
+{% block title %}Verify Email — MediCart{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="container">
+        <div class="row justify-content-center align-items-center min-vh-80 py-5">
+            <div class="col-md-5 col-lg-4">
+                <div class="auth-card" id="otpCard">
+                    <!-- Header -->
+                    <div class="auth-header">
+                        <div class="otp-icon-wrap">
+                            <div class="otp-icon-circle">
+                                <i class="bi bi-shield-lock-fill"></i>
+                            </div>
+                            <div class="otp-icon-ring"></div>
+                        </div>
+                        <h2>Verify Your Email</h2>
+                        <p>We've sent a 6-digit verification code to</p>
+                        <p class="otp-email-display">{{ masked_email }}</p>
+                    </div>
+
+                    <!-- OTP Input -->
+                    <div id="otpInputSection">
+                        <div class="otp-boxes" id="otpBoxes">
+                            <input type="text" maxlength="1" class="otp-box" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code">
+                            <input type="text" maxlength="1" class="otp-box" data-index="1" inputmode="numeric" pattern="[0-9]">
+                            <input type="text" maxlength="1" class="otp-box" data-index="2" inputmode="numeric" pattern="[0-9]">
+                            <div class="otp-separator">—</div>
+                            <input type="text" maxlength="1" class="otp-box" data-index="3" inputmode="numeric" pattern="[0-9]">
+                            <input type="text" maxlength="1" class="otp-box" data-index="4" inputmode="numeric" pattern="[0-9]">
+                            <input type="text" maxlength="1" class="otp-box" data-index="5" inputmode="numeric" pattern="[0-9]">
+                        </div>
+
+                        <!-- Error message -->
+                        <div id="otpError" class="otp-error" style="display:none;">
+                            <i class="bi bi-exclamation-circle me-1"></i>
+                            <span id="otpErrorText"></span>
+                        </div>
+
+                        <!-- Verify Button -->
+                        <button type="button" id="verifyBtn" class="btn btn-primary w-100 btn-lg otp-verify-btn" onclick="verifyOtp()" disabled>
+                            <span id="verifyBtnText">
+                                <i class="bi bi-check-circle me-2"></i>Verify & Continue
+                            </span>
+                            <span id="verifyBtnSpinner" style="display:none;">
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>Verifying...
+                            </span>
+                        </button>
+
+                        <!-- Resend Section -->
+                        <div class="otp-resend-section">
+                            <p class="text-muted small mb-1">Didn't receive the code?</p>
+                            <div id="resendCountdown">
+                                <span class="text-muted small">Resend available in <strong id="countdownTimer">60</strong>s</span>
+                            </div>
+                            <button type="button" id="resendBtn" class="btn btn-link otp-resend-btn" onclick="resendOtp()" style="display:none;">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Resend Code
+                            </button>
+                            <div id="resendSpinner" style="display:none;">
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                <span class="small text-muted">Sending...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Success State (hidden by default) -->
+                    <div id="otpSuccess" style="display:none;">
+                        <div class="otp-success-animation">
+                            <div class="otp-success-circle">
+                                <i class="bi bi-check-lg"></i>
+                            </div>
+                        </div>
+                        <h4 class="text-success mt-3 mb-1">Email Verified!</h4>
+                        <p class="text-muted small">Redirecting you to MediCart...</p>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="auth-footer">
+                        <p class="small text-muted">
+                            <a href="{% url 'users:signup' %}" class="text-decoration-none">
+                                <i class="bi bi-arrow-left me-1"></i>Back to Sign Up
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* OTP Icon Animation */
+.otp-icon-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+}
+.otp-icon-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+    position: relative;
+    z-index: 2;
+    animation: iconPulse 2s ease-in-out infinite;
+}
+.otp-icon-ring {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 3px solid rgba(102, 126, 234, 0.3);
+    animation: ringPulse 2s ease-in-out infinite;
+}
+@keyframes iconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+@keyframes ringPulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+/* Email display */
+.otp-email-display {
+    font-weight: 600;
+    color: #667eea;
+    font-size: 1.05rem;
+    letter-spacing: 0.3px;
+    background: rgba(102, 126, 234, 0.08);
+    padding: 6px 16px;
+    border-radius: 8px;
+    display: inline-block;
+    margin-top: 4px;
+}
+
+/* OTP Boxes */
+.otp-boxes {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 28px 0 20px;
+}
+.otp-box {
+    width: 50px;
+    height: 58px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #333;
+    background: #fafafa;
+    transition: all 0.25s ease;
+    outline: none;
+    caret-color: #667eea;
+}
+.otp-box:focus {
+    border-color: #667eea;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+}
+.otp-box.filled {
+    border-color: #667eea;
+    background: #fff;
+    color: #667eea;
+}
+.otp-box.error {
+    border-color: #dc3545;
+    background: #fff5f5;
+    animation: shake 0.4s ease;
+}
+.otp-separator {
+    color: #ccc;
+    font-size: 1.2rem;
+    font-weight: 300;
+    margin: 0 2px;
+    user-select: none;
+}
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    50% { transform: translateX(6px); }
+    75% { transform: translateX(-4px); }
+}
+
+/* Error */
+.otp-error {
+    text-align: center;
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: #fff5f5;
+    border-radius: 8px;
+    border: 1px solid #ffe0e0;
+}
+
+/* Verify Button */
+.otp-verify-btn {
+    border-radius: 12px;
+    padding: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    transition: all 0.3s ease;
+    margin-bottom: 16px;
+}
+.otp-verify-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+.otp-verify-btn:disabled {
+    opacity: 0.6;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    cursor: not-allowed;
+}
+
+/* Resend Section */
+.otp-resend-section {
+    text-align: center;
+    padding-top: 4px;
+}
+.otp-resend-btn {
+    color: #667eea;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+.otp-resend-btn:hover {
+    color: #764ba2;
+    text-decoration: none;
+}
+
+/* Success Animation */
+.otp-success-animation {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+.otp-success-circle {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 2.5rem;
+    animation: successPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes successPop {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 400px) {
+    .otp-box {
+        width: 42px;
+        height: 50px;
+        font-size: 1.3rem;
+    }
+    .otp-boxes {
+        gap: 5px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const boxes = document.querySelectorAll('.otp-box');
+    const verifyBtn = document.getElementById('verifyBtn');
+
+    // Focus the first box
+    boxes[0].focus();
+
+    boxes.forEach((box, index) => {
+        // Handle input
+        box.addEventListener('input', function(e) {
+            const value = this.value.replace(/[^0-9]/g, '');
+            this.value = value;
+
+            if (value) {
+                this.classList.add('filled');
+                // Auto-advance to next box
+                if (index < boxes.length - 1) {
+                    boxes[index + 1].focus();
+                }
+            } else {
+                this.classList.remove('filled');
+            }
+
+            updateVerifyButton();
+            hideError();
+        });
+
+        // Handle keydown for backspace navigation
+        box.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !this.value && index > 0) {
+                boxes[index - 1].focus();
+                boxes[index - 1].value = '';
+                boxes[index - 1].classList.remove('filled');
+                updateVerifyButton();
+            }
+            // Enter to submit
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const otp = getOtp();
+                if (otp.length === 6) {
+                    verifyOtp();
+                }
+            }
+        });
+
+        // Handle paste
+        box.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+            if (pasted.length > 0) {
+                pasted.split('').forEach((char, i) => {
+                    if (boxes[i]) {
+                        boxes[i].value = char;
+                        boxes[i].classList.add('filled');
+                    }
+                });
+                // Focus the next empty box or last box
+                const nextEmpty = Array.from(boxes).findIndex(b => !b.value);
+                if (nextEmpty !== -1) {
+                    boxes[nextEmpty].focus();
+                } else {
+                    boxes[boxes.length - 1].focus();
+                }
+                updateVerifyButton();
+            }
+        });
+
+        // Select all text on focus for easy re-entry
+        box.addEventListener('focus', function() {
+            this.select();
+        });
+    });
+
+    // Start countdown
+    startCountdown(60);
+});
+
+function getOtp() {
+    return Array.from(document.querySelectorAll('.otp-box')).map(b => b.value).join('');
+}
+
+function updateVerifyButton() {
+    const otp = getOtp();
+    document.getElementById('verifyBtn').disabled = otp.length !== 6;
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('otpError');
+    const errorText = document.getElementById('otpErrorText');
+    errorText.textContent = message;
+    errorDiv.style.display = 'block';
+    // Add error class to boxes
+    document.querySelectorAll('.otp-box').forEach(b => b.classList.add('error'));
+    setTimeout(() => {
+        document.querySelectorAll('.otp-box').forEach(b => b.classList.remove('error'));
+    }, 600);
+}
+
+function hideError() {
+    document.getElementById('otpError').style.display = 'none';
+}
+
+function getCsrfToken() {
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+async function verifyOtp() {
+    const otp = getOtp();
+    if (otp.length !== 6) return;
+
+    const btn = document.getElementById('verifyBtn');
+    const btnText = document.getElementById('verifyBtnText');
+    const btnSpinner = document.getElementById('verifyBtnSpinner');
+
+    // Show loading state
+    btn.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline';
+
+    try {
+        const response = await fetch('/users/verify-registration-otp-submit/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ otp: otp })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            // Show success state
+            document.getElementById('otpInputSection').style.display = 'none';
+            document.getElementById('otpSuccess').style.display = 'block';
+
+            // Change the header
+            document.querySelector('.auth-header').style.display = 'none';
+
+            // Redirect after animation
+            setTimeout(() => {
+                window.location.href = data.redirect || '/shop/';
+            }, 1800);
+        } else {
+            showError(data.error || 'Verification failed. Please try again.');
+            btn.disabled = false;
+            btnText.style.display = 'inline';
+            btnSpinner.style.display = 'none';
+
+            // Clear boxes and refocus
+            document.querySelectorAll('.otp-box').forEach(b => {
+                b.value = '';
+                b.classList.remove('filled');
+            });
+            document.querySelector('.otp-box').focus();
+        }
+    } catch (err) {
+        showError('A network error occurred. Please try again.');
+        btn.disabled = false;
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+    }
+}
+
+let countdownInterval = null;
+
+function startCountdown(seconds) {
+    const countdownDiv = document.getElementById('resendCountdown');
+    const timerSpan = document.getElementById('countdownTimer');
+    const resendBtn = document.getElementById('resendBtn');
+
+    countdownDiv.style.display = 'block';
+    resendBtn.style.display = 'none';
+
+    let remaining = seconds;
+    timerSpan.textContent = remaining;
+
+    if (countdownInterval) clearInterval(countdownInterval);
+
+    countdownInterval = setInterval(() => {
+        remaining--;
+        timerSpan.textContent = remaining;
+
+        if (remaining <= 0) {
+            clearInterval(countdownInterval);
+            countdownDiv.style.display = 'none';
+            resendBtn.style.display = 'inline-block';
+        }
+    }, 1000);
+}
+
+async function resendOtp() {
+    const resendBtn = document.getElementById('resendBtn');
+    const resendSpinner = document.getElementById('resendSpinner');
+
+    resendBtn.style.display = 'none';
+    resendSpinner.style.display = 'block';
+
+    try {
+        const response = await fetch('/users/resend-registration-otp/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({})
+        });
+
+        const data = await response.json();
+        resendSpinner.style.display = 'none';
+
+        if (response.ok && data.success) {
+            // Show a brief success indicator
+            resendBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Sent!';
+            resendBtn.style.display = 'inline-block';
+            resendBtn.disabled = true;
+
+            setTimeout(() => {
+                resendBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Resend Code';
+                resendBtn.disabled = false;
+                startCountdown(60);
+            }, 1500);
+        } else {
+            showError(data.error || 'Failed to resend OTP.');
+            resendBtn.style.display = 'inline-block';
+        }
+    } catch (err) {
+        resendSpinner.style.display = 'none';
+        resendBtn.style.display = 'inline-block';
+        showError('Network error. Please try again.');
+    }
+}
+</script>
+{% endblock %}

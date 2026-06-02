@@ -345,7 +345,10 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
             },
             body: JSON.stringify({ email: session.user.email })
         }).then(res => res.json()).then(data => {
-            if (data.success) {
+            if (data.requires_otp) {
+                // New user needs OTP verification first
+                window.location.href = data.redirect || '/users/verify-registration-otp/';
+            } else if (data.success) {
                 window.location.href = '/shop/';
             }
         });

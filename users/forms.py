@@ -25,6 +25,8 @@ class SignUpForm(UserCreationForm):
         user.username = self.cleaned_data['email']
         user.phone = self.cleaned_data.get('phone', '')
         user.address = self.cleaned_data.get('address', '')
+        user.is_email_verified = False
+        user.is_active = False
         if commit:
             user.save()
         return user

@@ -111,7 +111,10 @@ async function createDjangoUserFromSupabase(email) {
         
         const data = await response.json();
         
-        if (response.ok && data.success) {
+        if (data.requires_otp) {
+            // New user needs OTP verification first
+            window.location.href = data.redirect || '/users/verify-registration-otp/';
+        } else if (response.ok && data.success) {
             console.log('User created/logged in successfully');
             // Redirect to home page
             window.location.href = '/shop/';
