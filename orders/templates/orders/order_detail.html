@@ -34,6 +34,21 @@
     </div>
     {% endif %}
 
+    {% if confirm_delete %}
+    <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-trash-fill fs-4"></i>
+        <div>
+            <strong>Permanently Delete Order?</strong><br>
+            This will <strong>permanently remove</strong> Order #{{ order.id }} from your history. This action cannot be undone.
+            <form method="post" action="{% url 'orders:delete_order' order.pk %}" class="d-inline ms-3">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">Yes, Delete Order</button>
+            </form>
+            <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-outline-secondary btn-sm ms-2">No, Keep It</a>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Status Stepper -->
     {% if order.status == 'pending_prescription' %}
     <div class="alert alert-warning mb-4 d-flex align-items-start gap-3" style="border-left: 4px solid #ffc107;">
@@ -150,6 +165,10 @@
                     <i class="bi bi-star me-1"></i>Leave a Review
                 </a>
                 {% endif %}
+                <a href="{% url 'orders:delete_order' order.pk %}" class="btn btn-danger w-100 mt-1"
+                   onclick="return confirm('Are you sure you want to permanently delete Order #{{ order.id }}? This cannot be undone.')">
+                    <i class="bi bi-trash me-1"></i>Delete Order
+                </a>
             </div>
         </div>
     </div>

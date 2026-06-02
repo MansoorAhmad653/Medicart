@@ -47,3 +47,24 @@ def cancel_order(request, pk):
         messages.success(request, f'Order #{order.id} has been cancelled successfully.')
         return redirect('orders:order_list')
     return render(request, 'orders/order_detail.html', {'order': order, 'confirm_cancel': True})
+
+
+@login_required
+def delete_order(request, pk):
+    order = get_object_or_404(Order, pk=pk, user=request.user)
+    if request.method == 'POST':
+        # Restore stock if the order wasn't cancelled or delivered yet
+        if order.status not in ('cancelled', 'delivered'):
+            bulk_update_items = []
+            for item in order.items.all():
+                if item.medicine:
+                    item.medicine.stock_quantity += item.quantity
+                    bulk_update_items.append(item.medicine)
+            if bulk_update_items:
+                from shop.models import Medicine
+                Medicine.objects.bulk_update(bulk_update_items, ['stock_quantity'], batch_size=100)
+                
+        order.delete()
+        messages.success(request, f'Order #{pk} has been deleted successfully.')
+        return redirect('orders:order_list')
+    return render(request, 'orders/order_detail.html', {'order': order, 'confirm_delete': True})
