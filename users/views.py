@@ -18,23 +18,28 @@ def signup_view(request):
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.is_active = False
-            user.is_email_verified = False
-            user.save()
+            # Store the registration data in the session instead of the database
+            signup_data = {
+                'email': form.cleaned_data['email'],
+                'name': form.cleaned_data['name'],
+                'phone': form.cleaned_data.get('phone', ''),
+                'address': form.cleaned_data.get('address', ''),
+                'password': form.cleaned_data['password1'],
+            }
+            request.session['pending_signup_data'] = signup_data
 
-            # Generate and send OTP via Resend
+            # Generate and send OTP via Brevo/Console
             otp = generate_otp()
-            store_otp_in_session(request, user.email, otp, purpose='registration')
-            success, error = send_otp_email(user.email, otp, purpose='registration')
+            store_otp_in_session(request, signup_data['email'], otp, purpose='registration')
+            success, error = send_otp_email(signup_data['email'], otp, purpose='registration')
 
             if not success:
                 print(f"Failed to send OTP email: {error}")
 
             # Store email in session for verification page
-            request.session['pending_otp_email'] = user.email
+            request.session['pending_otp_email'] = signup_data['email']
             request.session['pending_otp_source'] = 'signup'
-            messages.info(request, f'A verification code has been sent to {user.email}.')
+            messages.info(request, f'A verification code has been sent to {signup_data["email"]}.')
             return redirect('users:verify_registration_otp')
         else:
             messages.error(request, 'Please correct the errors below.')
@@ -342,33 +347,62 @@ def verify_registration_otp_submit(request):
         if not otp or len(otp) != 6:
             return JsonResponse({'error': 'Please enter a valid 6-digit OTP.'}, status=400)
 
-        # Verify OTP from session (Resend-based)
+        # Verify OTP from session (Resend/Brevo-based)
         valid, error_msg = verify_otp_from_session(request, email, otp, purpose='registration')
         if not valid:
             return JsonResponse({'error': error_msg}, status=400)
 
-        # OTP valid — activate the Django user
-        try:
-            user = CustomUser.objects.get(email=email)
-            user.is_active = True
-            user.is_email_verified = True
-            user.save()
+        source = request.session.get('pending_otp_source', 'signup')
 
-            # Log them in
-            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+        if source == 'signup':
+            signup_data = request.session.get('pending_signup_data')
+            if not signup_data:
+                return JsonResponse({'error': 'Registration session data not found. Please sign up again.'}, status=400)
 
-            # Clean up session
-            request.session.pop('pending_otp_email', None)
-            request.session.pop('pending_otp_source', None)
+            try:
+                # Double-check email uniqueness right before database write
+                if CustomUser.objects.filter(email=email).exists():
+                    return JsonResponse({'error': 'This email has already been registered.'}, status=400)
 
-            return JsonResponse({
-                'success': True,
-                'message': 'Email verified successfully! Welcome to MediCart.',
-                'redirect': '/shop/'
-            })
+                # Create the user in the database now that OTP is verified
+                user = CustomUser(
+                    email=signup_data['email'],
+                    username=signup_data['email'],
+                    name=signup_data['name'],
+                    phone=signup_data['phone'],
+                    address=signup_data['address'],
+                    is_active=True,
+                    is_email_verified=True
+                )
+                user.set_password(signup_data['password'])
+                user.save()
 
-        except CustomUser.DoesNotExist:
-            return JsonResponse({'error': 'User account not found.'}, status=400)
+            except Exception as db_err:
+                print(f"Error creating user in DB: {db_err}")
+                return JsonResponse({'error': f'Failed to create your profile: {db_err}'}, status=500)
+        else:
+            # Google OAuth registration - inactive user is already in the database
+            try:
+                user = CustomUser.objects.get(email=email)
+                user.is_active = True
+                user.is_email_verified = True
+                user.save()
+            except CustomUser.DoesNotExist:
+                return JsonResponse({'error': 'User account not found.'}, status=400)
+
+        # Log them in
+        login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+
+        # Clean up session
+        request.session.pop('pending_otp_email', None)
+        request.session.pop('pending_otp_source', None)
+        request.session.pop('pending_signup_data', None)
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Email verified successfully! Welcome to MediCart.',
+            'redirect': '/shop/'
+        })
 
     except Exception as e:
         print(f"verify_registration_otp_submit error: {e}")
