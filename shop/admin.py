@@ -40,7 +40,7 @@ class MedicineAdmin(admin.ModelAdmin):
             'fields': ('requires_prescription', 'manufacturer', 'dosage')
         }),
         ('Medicine Image (Supabase)', {
-            'fields': ('image_upload', 'image_preview', 'image'),
+            'fields': ('image_upload', 'image_preview'),
             'description': '📸 <strong>Upload to Supabase Storage:</strong> Select an image file and it will be automatically uploaded to Supabase. The image URL will be stored in the database.',
             'classes': ()
         }),
