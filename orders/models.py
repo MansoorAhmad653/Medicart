@@ -21,14 +21,24 @@ class Order(models.Model):
     delivery_fee = models.DecimalField(max_digits=6, decimal_places=2, default=150)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='confirmed')
     notes = models.TextField(blank=True)
+    order_number = models.PositiveIntegerField(default=0)  # User-specific order count
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
+        unique_together = ('user', 'order_number')
 
     def __str__(self):
-        return f'Order #{self.id} by {self.user.email}'
+        return f'Order #{self.id} (User Order #{self.order_number}) by {self.user.email}'
+
+    def save(self, *args, **kwargs):
+        """Auto-generate user-specific order number"""
+        if not self.order_number:
+            # Get the next order number for this user
+            last_order = Order.objects.filter(user=self.user).order_by('-order_number').first()
+            self.order_number = (last_order.order_number + 1) if last_order else 1
+        super().save(*args, **kwargs)
 
     def can_cancel(self):
         if self.status in ('delivered', 'cancelled'):

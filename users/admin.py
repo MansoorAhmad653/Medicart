@@ -91,7 +91,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             return '<em>No orders yet</em>'
         
         order_list = '<br>'.join([
-            f'<a href="{reverse("admin:orders_order_change", args=[o.id])}" style="color: #007bff;">Order #{o.id}</a> - '
+            f'<a href="{reverse("admin:orders_order_change", args=[o.id])}" style="color: #007bff;">Order #{o.order_number}</a> - '
             f'{o.get_status_display()} - Rs. {o.total_price:,.2f} ({o.created_at.strftime("%d %b %Y")})'
             for o in orders
         ])

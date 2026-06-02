@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Order #{{ order.id }} — MediCart{% endblock %}
+{% block title %}Order #{{ order.order_number }} — MediCart{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -7,11 +7,11 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'orders:order_list' %}">My Orders</a></li>
-                <li class="breadcrumb-item active">Order #{{ order.id }}</li>
+                <li class="breadcrumb-item active">Order #{{ order.order_number }}</li>
             </ol>
         </nav>
         <div class="d-flex align-items-center gap-3 flex-wrap">
-            <h1 class="page-title mb-0">Order #{{ order.id }}</h1>
+            <h1 class="page-title mb-0">Order #{{ order.order_number }}</h1>
             <span class="order-status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
         </div>
         <p class="page-sub">Placed on {{ order.created_at|date:"F d, Y at h:i A" }}</p>
@@ -24,7 +24,7 @@
         <i class="bi bi-exclamation-triangle-fill fs-4"></i>
         <div>
             <strong>Confirm Cancellation</strong><br>
-            Are you sure you want to cancel Order #{{ order.id }}?
+            Are you sure you want to cancel Order #{{ order.order_number }}?
             <form method="post" action="{% url 'orders:cancel_order' order.pk %}" class="d-inline ms-3">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-danger btn-sm">Yes, Cancel Order</button>
@@ -39,7 +39,7 @@
         <i class="bi bi-trash-fill fs-4"></i>
         <div>
             <strong>Permanently Delete Order?</strong><br>
-            This will <strong>permanently remove</strong> Order #{{ order.id }} from your history. This action cannot be undone.
+            This will <strong>permanently remove</strong> Order #{{ order.order_number }} from your history. This action cannot be undone.
             <form method="post" action="{% url 'orders:delete_order' order.pk %}" class="d-inline ms-3">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-danger btn-sm">Yes, Delete Order</button>

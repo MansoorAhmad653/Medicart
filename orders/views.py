@@ -44,7 +44,7 @@ def cancel_order(request, pk):
         from shop.models import Medicine
         Medicine.objects.bulk_update(bulk_update_items, ['stock_quantity'], batch_size=100)
         
-        messages.success(request, f'Order #{order.id} has been cancelled successfully.')
+        messages.success(request, f'Order #{order.order_number} has been cancelled successfully.')
         return redirect('orders:order_list')
     return render(request, 'orders/order_detail.html', {'order': order, 'confirm_cancel': True})
 
@@ -53,6 +53,7 @@ def cancel_order(request, pk):
 def delete_order(request, pk):
     order = get_object_or_404(Order, pk=pk, user=request.user)
     if request.method == 'POST':
+        order_number = order.order_number  # Save order number before deletion
         # Restore stock if the order wasn't cancelled or delivered yet
         if order.status not in ('cancelled', 'delivered'):
             bulk_update_items = []
@@ -65,6 +66,6 @@ def delete_order(request, pk):
                 Medicine.objects.bulk_update(bulk_update_items, ['stock_quantity'], batch_size=100)
                 
         order.delete()
-        messages.success(request, f'Order #{pk} has been deleted successfully.')
+        messages.success(request, f'Order #{order_number} has been deleted successfully.')
         return redirect('orders:order_list')
     return render(request, 'orders/order_detail.html', {'order': order, 'confirm_delete': True})

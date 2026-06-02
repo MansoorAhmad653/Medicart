@@ -321,11 +321,11 @@ def checkout_view(request):
             if order_status == 'pending_prescription':
                 messages.success(
                     request, 
-                    f'Order #{order.id} placed successfully! It is currently pending prescription approval. '
+                    f'Order #{order.order_number} placed successfully! It is currently pending prescription approval. '
                     f'Once our pharmacist approves your uploaded prescription, we will dispatch it!'
                 )
             else:
-                messages.success(request, f'Order #{order.id} placed successfully! We will deliver it soon.')
+                messages.success(request, f'Order #{order.order_number} placed successfully! We will deliver it soon.')
                 
             return redirect('orders:order_detail', pk=order.pk)
     else:

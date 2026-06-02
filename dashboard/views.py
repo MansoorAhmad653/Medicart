@@ -52,7 +52,7 @@ def admin_dashboard(request):
             order = get_object_or_404(Order, pk=order_id)
             order.status = new_status
             order.save()
-            messages.success(request, f'Order #{order_id} status updated to {new_status}.')
+            messages.success(request, f'Order #{order.order_number} status updated to {new_status}.')
             return redirect('dashboard:admin_dashboard')
 
     return render(request, 'dashboard/admin_dashboard.html', {

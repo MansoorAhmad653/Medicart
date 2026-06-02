@@ -1,12 +1,30 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.core.exceptions import ValidationError
 from .models import CustomUser
+
+
+def validate_phone_number(value):
+    """Validate phone number: must be 11 digits and start with 03"""
+    if not value:
+        return  # Allow empty phone numbers if field is not required
+    
+    # Remove any non-digit characters
+    phone_digits = ''.join(filter(str.isdigit, value))
+    
+    # Check length
+    if len(phone_digits) != 11:
+        raise ValidationError("Phone number must be exactly 11 digits.")
+    
+    # Check if starts with 03
+    if not phone_digits.startswith('03'):
+        raise ValidationError("Phone number must start with 03.")
 
 
 class SignUpForm(UserCreationForm):
     email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address'}))
     name = forms.CharField(max_length=150, required=True, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name'}))
-    phone = forms.CharField(max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number'}))
+    phone = forms.CharField(max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number (03XX-XXXXXXX)'}), validators=[validate_phone_number])
     address = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Delivery Address'}))
 
     class Meta:
@@ -50,6 +68,10 @@ class ProfileUpdateForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number (03XX-XXXXXXX)'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['phone'].validators.append(validate_phone_number)

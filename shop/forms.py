@@ -1,4 +1,5 @@
 from django import forms
+from users.forms import validate_phone_number
 
 
 class CheckoutForm(forms.Form):
@@ -8,8 +9,9 @@ class CheckoutForm(forms.Form):
     )
     phone = forms.CharField(
         max_length=20,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone number for delivery'}),
-        label='Contact Phone'
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone number for delivery (03XX-XXXXXXX)'}),
+        label='Contact Phone',
+        validators=[validate_phone_number]
     )
     payment_method = forms.ChoiceField(
         choices=[('cod', 'Cash on Delivery'), ('card', 'Credit/Debit Card (Coming Soon)')],

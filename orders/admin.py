@@ -17,17 +17,17 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_id', 'customer_name', 'status_badge', 'status', 'total_price', 'created_date', 'days_since', 'action_buttons')
+    list_display = ('order_id_display', 'customer_name', 'status_badge', 'status', 'total_price', 'created_date', 'days_since', 'action_buttons')
     list_filter = ('status', 'created_at')
-    search_fields = ('user__email', 'user__name', 'id', 'phone')
+    search_fields = ('user__email', 'user__name', 'id', 'order_number', 'phone')
     list_editable = ('status',)
     inlines = [OrderItemInline]
-    readonly_fields = ('created_at', 'updated_at', 'order_summary', 'user_info')
+    readonly_fields = ('created_at', 'updated_at', 'order_summary', 'user_info', 'order_number')
     ordering = ['-created_at']
     
     fieldsets = (
         ('Order Information', {
-            'fields': ('order_summary', 'user_info', 'status')
+            'fields': ('order_summary', 'user_info', 'order_number', 'status')
         }),
         ('Delivery Details', {
             'fields': ('delivery_address', 'phone')
@@ -41,9 +41,9 @@ class OrderAdmin(admin.ModelAdmin):
         }),
     )
     
-    def order_id(self, obj):
-        return format_html('<strong>Order #{}</strong>', obj.id)
-    order_id.short_description = 'Order ID'
+    def order_id_display(self, obj):
+        return format_html('<strong>Global #{} | User #{}</strong>', obj.id, obj.order_number)
+    order_id_display.short_description = 'Order ID'
     
     def customer_name(self, obj):
         return f"{obj.user.name or obj.user.email}"
@@ -98,7 +98,7 @@ class OrderAdmin(admin.ModelAdmin):
         subtotal = obj.total_price - obj.delivery_fee
         return format_html(
             '<div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">'
-            '<strong>Order #{}</strong><br>'
+            '<strong>Global Order #{}</strong> (User Order #{})<br>'
             'Items:<br>{}<br>'
             '<hr style="margin: 10px 0;">'
             'Subtotal: Rs. {:,.2f}<br>'
@@ -106,6 +106,7 @@ class OrderAdmin(admin.ModelAdmin):
             '<strong style="font-size: 1.1em;">Total: Rs. {:,.2f}</strong>'
             '</div>',
             obj.id,
+            obj.order_number,
             item_details,
             subtotal,
             obj.delivery_fee,
@@ -138,12 +139,12 @@ class OrderAdmin(admin.ModelAdmin):
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('order_link', 'medicine', 'quantity', 'price', 'item_total')
     list_filter = ('order__created_at', 'order__status')
-    search_fields = ('order__id', 'medicine__name')
+    search_fields = ('order__id', 'order__order_number', 'medicine__name')
     readonly_fields = ('order', 'medicine', 'quantity', 'price')
     
     def order_link(self, obj):
         url = reverse('admin:orders_order_change', args=[obj.order.pk])
-        return format_html('<a href="{}">Order #{}</a>', url, obj.order.id)
+        return format_html('<a href="{}">Global #{} | User #{}</a>', url, obj.order.id, obj.order.order_number)
     order_link.short_description = 'Order'
     
     def item_total(self, obj):

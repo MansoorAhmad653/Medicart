@@ -16,7 +16,7 @@
         {% for order in orders %}
         <div class="order-card">
             <div class="order-card-header">
-                <div class="order-id">Order #{{ order.id }}</div>
+                <div class="order-id">Order #{{ order.order_number }}</div>
                 <div class="order-date text-muted small"><i class="bi bi-calendar3 me-1"></i>{{ order.created_at|date:"M d, Y · h:i A" }}</div>
                 <div class="order-status-badge status-{{ order.status }}">
                     {% if order.status == 'pending_prescription' %}<i class="bi bi-file-earmark-medical me-1"></i>
@@ -64,7 +64,7 @@
                     </a>
                     {% endif %}
                     <a href="{% url 'orders:delete_order' order.pk %}" class="btn btn-sm btn-danger"
-                       onclick="return confirm('Permanently delete Order #{{ order.id }}? This cannot be undone.')">
+                       onclick="return confirm('Permanently delete Order #{{ order.order_number }}? This cannot be undone.')">
                         <i class="bi bi-trash me-1"></i>Delete
                     </a>
                 </div>
