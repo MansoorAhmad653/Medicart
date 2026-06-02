@@ -227,27 +227,13 @@ def checkout_view(request):
         messages.info(request, 'Please login to proceed with checkout.')
         return redirect('users:login')
 
-    from prescriptions.forms import PrescriptionForm
     from prescriptions.models import Prescription
-
-    # Handle prescription file uploads directly on the checkout page
-    if request.method == 'POST' and request.POST.get('action') == 'upload_prescription':
-        prescription_form = PrescriptionForm(request.POST, request.FILES)
-        if prescription_form.is_valid():
-            prescription = prescription_form.save(commit=False)
-            prescription.user = request.user
-            prescription.status = 'pending'
-            prescription.save()
-            messages.success(request, 'Prescription uploaded successfully! Our pharmacist will review it shortly.')
-            return redirect('shop:checkout')
-        else:
-            messages.error(request, 'Error uploading prescription. Please ensure it is an image or PDF under 10MB.')
-            return redirect('shop:checkout')
+    from orders.models import Order, OrderItem
 
     cart_items = []
     subtotal = 0
     requires_prescription = False
-    can_checkout = True
+    has_approved_prescriptions = True
     
     # Batch load all medicines instead of individual queries
     medicine_ids = [int(med_id) for med_id in cart.keys()]
@@ -274,7 +260,7 @@ def checkout_view(request):
                 if approved:
                     item_prescription_status = {'status': 'approved', 'message': 'Approved'}
                 else:
-                    can_checkout = False
+                    has_approved_prescriptions = False
                     # Check for pending prescription
                     pending = Prescription.objects.filter(
                         user=request.user,
@@ -308,22 +294,51 @@ def checkout_view(request):
     total = subtotal + DELIVERY_FEE
 
     if request.method == 'POST':
-        # Enforce prescription check right before order placement
-        if not can_checkout:
-            messages.error(request, 'You cannot checkout because some medicines in your cart require an approved prescription.')
-            return redirect('shop:checkout')
-
-        form = CheckoutForm(request.POST, user=request.user)
+        form = CheckoutForm(request.POST, request.FILES, user=request.user)
+        
+        # Enforce prescription file upload if unapproved items exist
+        prescription_file = request.FILES.get('prescription_file')
+        if requires_prescription and not has_approved_prescriptions and not prescription_file:
+            form.add_error('prescription_file', 'Please upload a scanned image or PDF of your valid prescription.')
+            messages.error(request, 'Please upload a prescription to complete your order.')
+        
         if form.is_valid():
-            from orders.models import Order, OrderItem
+            uploaded_prescription = None
+            order_status = 'confirmed'
+            
+            # 1. Handle prescription upload if required and not already approved
+            if requires_prescription and not has_approved_prescriptions:
+                try:
+                    uploaded_prescription = Prescription.objects.create(
+                        user=request.user,
+                        file=prescription_file,
+                        notes=form.cleaned_data.get('notes', ''),
+                        status='pending'
+                    )
+                    
+                    # Associate all prescription-required medicines in the cart with this prescription
+                    rx_medicines = [item['medicine'] for item in cart_items if item['medicine'].requires_prescription]
+                    uploaded_prescription.medicines.add(*rx_medicines)
+                    
+                    order_status = 'pending_prescription'
+                    print(f"Prescription uploaded and associated with medicines: {rx_medicines}")
+                except Exception as e:
+                    messages.error(request, f'Failed to process prescription upload: {e}')
+                    return redirect('shop:checkout')
+            
+            # 2. Create the order
             order = Order.objects.create(
                 user=request.user,
                 delivery_address=form.cleaned_data['delivery_address'],
                 phone=form.cleaned_data['phone'],
                 total_price=total,
                 delivery_fee=DELIVERY_FEE,
+                status=order_status,
+                prescription=uploaded_prescription,
+                notes=form.cleaned_data.get('notes', '')
             )
-            # Batch update medicines
+            
+            # 3. Create OrderItems and update stock
             bulk_update_items = []
             for item in cart_items:
                 OrderItem.objects.create(
@@ -338,17 +353,25 @@ def checkout_view(request):
             # Batch update all medicines at once
             Medicine.objects.bulk_update(bulk_update_items, ['stock_quantity'], batch_size=100)
 
+            # 4. Clear the cart
             request.session['cart'] = {}
             request.session.modified = True
-            messages.success(request, f'Order #{order.id} placed successfully! We will deliver it soon.')
+            
+            if order_status == 'pending_prescription':
+                messages.success(
+                    request, 
+                    f'Order #{order.id} placed successfully! It is currently pending prescription approval. '
+                    f'Once our pharmacist approves your uploaded prescription, we will dispatch it!'
+                )
+            else:
+                messages.success(request, f'Order #{order.id} placed successfully! We will deliver it soon.')
+                
             return redirect('orders:order_detail', pk=order.pk)
     else:
         initial = {}
         if request.user.is_authenticated:
             initial = {'delivery_address': request.user.address, 'phone': request.user.phone}
         form = CheckoutForm(user=request.user, initial=initial)
-
-    prescription_form = PrescriptionForm()
 
     return render(request, 'shop/checkout.html', {
         'form': form,
@@ -357,6 +380,5 @@ def checkout_view(request):
         'delivery_fee': DELIVERY_FEE,
         'total': total,
         'requires_prescription': requires_prescription,
-        'can_checkout': can_checkout,
-        'prescription_form': prescription_form,
+        'has_approved_prescriptions': has_approved_prescriptions,
     })

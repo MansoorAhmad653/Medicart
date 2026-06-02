@@ -22,6 +22,11 @@ class CheckoutForm(forms.Form):
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Special instructions (optional)'}),
         label='Order Notes'
     )
+    prescription_file = forms.FileField(
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*,.pdf'}),
+        label='Upload Prescription (Required for Rx medicines)'
+    )
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)

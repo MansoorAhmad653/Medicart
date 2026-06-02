@@ -36,14 +36,14 @@
             {% if requires_prescription %}
             <div class="checkout-card border-warning mb-4">
                 <div class="checkout-section-title text-warning mb-3">
-                    <i class="bi bi-file-earmark-medical me-2"></i>Prescription Verification Required
+                    <i class="bi bi-file-earmark-medical me-2"></i>Prescription Requirements Status
                 </div>
                 
                 <p class="text-muted small">
-                    This order contains medicines that require an approved prescription by our pharmacist. Please check the status below:
+                    This order contains medicines that require prescription approval by our pharmacist. Please check the status of your medicines below:
                 </p>
 
-                <div class="list-group mb-3">
+                <div class="list-group mb-0">
                     {% for item in cart_items %}
                         {% if item.prescription_status %}
                             <div class="list-group-item d-flex justify-content-between align-items-center">
@@ -53,52 +53,24 @@
                                 </div>
                                 <div>
                                     {% if item.prescription_status.status == 'approved' %}
-                                        <span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Approved</span>
+                                        <span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Approved & Verified</span>
                                     {% elif item.prescription_status.status == 'pending' %}
                                         <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Pending Review</span>
                                     {% elif item.prescription_status.status == 'rejected' %}
                                         <span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle me-1"></i>Rejected</span>
                                         <div class="small text-danger mt-1">{{ item.prescription_status.message }}</div>
                                     {% else %}
-                                        <span class="badge bg-secondary text-white"><i class="bi bi-x-circle me-1"></i>Missing</span>
+                                        <span class="badge bg-secondary text-white"><i class="bi bi-x-circle me-1"></i>Upload Required</span>
                                     {% endif %}
                                 </div>
                             </div>
                         {% endif %}
                     {% endfor %}
                 </div>
-
-                {% if not can_checkout %}
-                    <!-- Upload Form Inline -->
-                    <div class="p-3 bg-light rounded border border-dashed text-center">
-                        <h6 class="fw-600 mb-2"><i class="bi bi-upload me-2"></i>Upload Your Prescription</h6>
-                        <p class="text-muted small mb-3">Upload a scanned copy or image of your valid prescription. Once uploaded, our pharmacist will verify it and unlock your checkout.</p>
-                        <form method="post" enctype="multipart/form-data" action="{% url 'shop:checkout' %}">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="upload_prescription">
-                            <div class="mb-3 text-start">
-                                <label class="form-label small fw-500">Choose File (Image or PDF) *</label>
-                                {{ prescription_form.file }}
-                            </div>
-                            <div class="mb-3 text-start">
-                                <label class="form-label small fw-500">Additional Notes for Pharmacist</label>
-                                {{ prescription_form.notes }}
-                            </div>
-                            <button type="submit" class="btn btn-warning btn-sm w-100 fw-600">
-                                <i class="bi bi-cloud-upload me-2"></i>Upload & Submit Prescription
-                            </button>
-                        </form>
-                    </div>
-                {% else %}
-                    <div class="alert alert-success d-flex align-items-center mb-0" role="alert">
-                        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-                        <div>Your prescription is verified and approved! You can now place your order.</div>
-                    </div>
-                {% endif %}
             </div>
             {% endif %}
 
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="checkout-card">
                     <div class="checkout-section-title"><i class="bi bi-geo-alt me-2"></i>Delivery Information</div>
@@ -113,6 +85,31 @@
                         {% if form.phone.errors %}<div class="text-danger small">{{ form.phone.errors }}</div>{% endif %}
                     </div>
                 </div>
+
+                {% if requires_prescription and not has_approved_prescriptions %}
+                <!-- Prescription Upload Section inside main form -->
+                <div class="checkout-card mt-4 border-warning">
+                    <div class="checkout-section-title text-warning mb-2">
+                        <i class="bi bi-cloud-upload me-2"></i>Upload Your Prescription File
+                    </div>
+                    <p class="text-muted small mb-3">
+                        You don't have an approved prescription for these medicines on file. Please upload a scanned copy or clear image of your valid prescription below. 
+                        <strong>Your order will be created and saved as "Pending Prescription"</strong> and will be processed immediately once our pharmacist approves it.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-500">Select Prescription File (Image or PDF) *</label>
+                        {{ form.prescription_file }}
+                        {% if form.prescription_file.errors %}
+                            <div class="text-danger small mt-1 fw-500">{{ form.prescription_file.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% elif requires_prescription and has_approved_prescriptions %}
+                <div class="alert alert-success d-flex align-items-center mt-4 mb-0" role="alert">
+                    <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                    <div>All prescription medicines in your cart are approved! Your order will be confirmed immediately.</div>
+                </div>
+                {% endif %}
 
                 <div class="checkout-card mt-4">
                     <div class="checkout-section-title"><i class="bi bi-credit-card me-2"></i>Payment Method</div>
@@ -142,17 +139,14 @@
                     {{ form.notes }}
                 </div>
 
-                {% if can_checkout %}
+                {% if requires_prescription and not has_approved_prescriptions %}
+                <button type="submit" class="btn btn-warning btn-lg w-100 mt-4 fw-600 text-dark">
+                    <i class="bi bi-file-earmark-medical me-2"></i>Place Order (Pending Prescription) — Rs. {{ total }}
+                </button>
+                {% else %}
                 <button type="submit" class="btn btn-primary btn-lg w-100 mt-4">
                     <i class="bi bi-check-circle me-2"></i>Place Order — Rs. {{ total }}
                 </button>
-                {% else %}
-                <button type="button" class="btn btn-secondary btn-lg w-100 mt-4" disabled>
-                    <i class="bi bi-lock me-2"></i>Prescription Approval Required
-                </button>
-                <div class="text-danger small text-center mt-2 fw-500">
-                    Your order contains medicines requiring pharmacist approval. Please upload your prescription above and wait for pharmacist verification.
-                </div>
                 {% endif %}
             </form>
         </div>
