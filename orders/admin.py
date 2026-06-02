@@ -51,6 +51,7 @@ class OrderAdmin(admin.ModelAdmin):
     
     def status_badge(self, obj):
         colors = {
+            'pending_prescription': '#fd7e14',
             'confirmed': '#007bff',
             'packed': '#ffc107',
             'dispatched': '#17a2b8',

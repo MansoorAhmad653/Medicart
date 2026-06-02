@@ -10,6 +10,7 @@ from .forms import SignUpForm, LoginForm, ProfileUpdateForm
 from .supabase_auth import supabase
 from .models import CustomUser
 from .otp_service import generate_otp, send_otp_email, store_otp_in_session, verify_otp_from_session
+from shop.cart_utils import merge_session_cart_to_db
 
 
 def signup_view(request):
@@ -56,6 +57,7 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            merge_session_cart_to_db(request)
             messages.success(request, f'Welcome back, {user.name or user.email}!')
             next_url = request.GET.get('next', 'shop:home')
             return redirect(next_url)
@@ -151,6 +153,7 @@ def auth_callback(request):
         
         # Existing user - login directly
         login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+        merge_session_cart_to_db(request)
         
         if request.method == 'POST':
             return JsonResponse({'success': True, 'message': 'Logged in successfully'})
@@ -253,6 +256,7 @@ def verify_otp_view(request):
                 is_new = True
 
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            merge_session_cart_to_db(request)
 
             return JsonResponse({
                 'success': True,
@@ -293,6 +297,7 @@ def verify_otp_view(request):
                     is_new = True
                 
                 login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                merge_session_cart_to_db(request)
                 
                 return JsonResponse({
                     'success': True,
@@ -392,6 +397,7 @@ def verify_registration_otp_submit(request):
 
         # Log them in
         login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+        merge_session_cart_to_db(request)
 
         # Clean up session
         request.session.pop('pending_otp_email', None)

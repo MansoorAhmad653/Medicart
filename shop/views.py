@@ -4,6 +4,7 @@ from django.db.models import Q, Prefetch
 from django.core.paginator import Paginator
 from .models import Medicine, Category
 from .forms import CheckoutForm
+from .cart_utils import get_cart_items, add_item, update_item, clear_cart, get_raw_cart_dict
 from feedback.models import Feedback
 
 DELIVERY_FEE = 150
@@ -130,27 +131,10 @@ def medicine_detail(request, pk):
 
 
 def cart_view(request):
-    cart = request.session.get('cart', {})
-    cart_items = []
-    subtotal = 0
-
-    # Batch load all medicines at once instead of individual queries
-    if cart:
-        medicine_ids = [int(med_id) for med_id in cart.keys()]
-        medicines = Medicine.objects.filter(pk__in=medicine_ids).in_bulk()
-        
-        for med_id, item in cart.items():
-            medicine = medicines.get(int(med_id))
-            if medicine:
-                item_total = medicine.price * item['quantity']
-                subtotal += item_total
-                cart_items.append({
-                    'medicine': medicine,
-                    'quantity': item['quantity'],
-                    'item_total': item_total,
-                })
-
+    cart_items = get_cart_items(request)
+    subtotal = sum(item['item_total'] for item in cart_items)
     total = subtotal + DELIVERY_FEE if cart_items else 0
+
     return render(request, 'shop/cart.html', {
         'cart_items': cart_items,
         'subtotal': subtotal,
@@ -161,8 +145,6 @@ def cart_view(request):
 
 def add_to_cart(request, pk):
     medicine = get_object_or_404(Medicine, pk=pk, is_active=True)
-    cart = request.session.get('cart', {})
-    med_id = str(pk)
 
     # Check if medicine requires prescription
     if medicine.requires_prescription:
@@ -180,46 +162,26 @@ def add_to_cart(request, pk):
         if not approved_prescription:
             messages.warning(request, f"{medicine.name} requires a prescription. You can add it to your cart, but you must upload a prescription and wait for pharmacist approval before checking out.")
 
-    if med_id in cart:
-        if cart[med_id]['quantity'] < medicine.stock_quantity:
-            cart[med_id]['quantity'] += 1
-            messages.success(request, f'Updated {medicine.name} quantity in cart.')
-        else:
-            messages.warning(request, f'Sorry, only {medicine.stock_quantity} units available.')
+    success, msg = add_item(request, medicine)
+    if success:
+        messages.success(request, msg)
     else:
-        cart[med_id] = {'quantity': 1, 'name': medicine.name, 'price': str(medicine.price)}
-        messages.success(request, f'{medicine.name} added to cart!')
+        messages.warning(request, msg)
 
-    request.session['cart'] = cart
-    request.session.modified = True
     return redirect(request.META.get('HTTP_REFERER', 'shop:cart'))
 
 
 def update_cart(request, pk):
-    med_id = str(pk)
-    cart = request.session.get('cart', {})
     action = request.POST.get('action')
-
-    if med_id in cart:
-        if action == 'increase':
-            medicine = get_object_or_404(Medicine, pk=pk)
-            if cart[med_id]['quantity'] < medicine.stock_quantity:
-                cart[med_id]['quantity'] += 1
-        elif action == 'decrease':
-            cart[med_id]['quantity'] -= 1
-            if cart[med_id]['quantity'] <= 0:
-                del cart[med_id]
-                messages.info(request, 'Item removed from cart.')
-        elif action == 'remove':
-            del cart[med_id]
-            messages.info(request, 'Item removed from cart.')
-
-    request.session['cart'] = cart
-    request.session.modified = True
+    msg = update_item(request, pk, action)
+    if msg:
+        messages.info(request, msg)
     return redirect('shop:cart')
+
+
 def checkout_view(request):
-    cart = request.session.get('cart', {})
-    if not cart:
+    cart_dict = get_raw_cart_dict(request)
+    if not cart_dict:
         messages.warning(request, 'Your cart is empty.')
         return redirect('shop:cart')
 
@@ -236,10 +198,10 @@ def checkout_view(request):
     has_approved_prescriptions = True
     
     # Batch load all medicines instead of individual queries
-    medicine_ids = [int(med_id) for med_id in cart.keys()]
+    medicine_ids = [int(med_id) for med_id in cart_dict.keys()]
     medicines = Medicine.objects.filter(pk__in=medicine_ids).in_bulk() if medicine_ids else {}
     
-    for med_id, item in cart.items():
+    for med_id, item in cart_dict.items():
         medicine = medicines.get(int(med_id))
         if medicine:
             item_total = medicine.price * item['quantity']
@@ -353,9 +315,8 @@ def checkout_view(request):
             # Batch update all medicines at once
             Medicine.objects.bulk_update(bulk_update_items, ['stock_quantity'], batch_size=100)
 
-            # 4. Clear the cart
-            request.session['cart'] = {}
-            request.session.modified = True
+            # 4. Clear the cart (both DB and session)
+            clear_cart(request)
             
             if order_status == 'pending_prescription':
                 messages.success(

@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.utils.text import slugify
 
 
@@ -54,3 +55,39 @@ class Medicine(models.Model):
 
     def is_low_stock(self):
         return 0 < self.stock_quantity <= 10
+
+
+class Cart(models.Model):
+    """Database-backed cart that persists across login/logout sessions."""
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='db_cart'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Cart for {self.user.email}'
+
+    def get_total(self):
+        return sum(item.item_total() for item in self.items.select_related('medicine').all())
+
+    def get_item_count(self):
+        return sum(item.quantity for item in self.items.all())
+
+
+class CartItem(models.Model):
+    """Individual item in a database-backed cart."""
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
+    medicine = models.ForeignKey(Medicine, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = ('cart', 'medicine')
+
+    def __str__(self):
+        return f'{self.quantity}x {self.medicine.name}'
+
+    def item_total(self):
+        return self.medicine.price * self.quantity
+

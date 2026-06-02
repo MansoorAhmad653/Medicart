@@ -19,7 +19,8 @@
                 <div class="order-id">Order #{{ order.id }}</div>
                 <div class="order-date text-muted small"><i class="bi bi-calendar3 me-1"></i>{{ order.created_at|date:"M d, Y · h:i A" }}</div>
                 <div class="order-status-badge status-{{ order.status }}">
-                    {% if order.status == 'confirmed' %}<i class="bi bi-check-circle me-1"></i>
+                    {% if order.status == 'pending_prescription' %}<i class="bi bi-file-earmark-medical me-1"></i>
+                    {% elif order.status == 'confirmed' %}<i class="bi bi-check-circle me-1"></i>
                     {% elif order.status == 'packed' %}<i class="bi bi-box me-1"></i>
                     {% elif order.status == 'dispatched' %}<i class="bi bi-truck me-1"></i>
                     {% elif order.status == 'delivered' %}<i class="bi bi-check-all me-1"></i>

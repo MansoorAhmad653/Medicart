@@ -524,6 +524,7 @@ img { max-width: 100%; height: auto; }
 .status-dispatched { background: #fff0e6; color: #c05200; }
 .status-delivered { background: #d1f5e4; color: #0a5c32; }
 .status-cancelled { background: #fde8ea; color: #8b1a24; }
+.status-pending_prescription { background: #fff0e6; color: #c05200; }
 .status-pending { background: #fff3cd; color: #7d5a00; }
 .status-approved { background: #d1f5e4; color: #0a5c32; }
 .status-rejected { background: #fde8ea; color: #8b1a24; }

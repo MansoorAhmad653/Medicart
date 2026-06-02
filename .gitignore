@@ -69,3 +69,4 @@ cleanup_supabase.sql
 SUPABASE_SETUP.md
 supabase_schema.sql
 seed_data_script.py
+latest_otp.txt

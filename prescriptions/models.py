@@ -36,3 +36,9 @@ class Prescription(models.Model):
         if self.is_approved:
             return self.medicines.all()
         return self.medicines.none()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.status == 'approved':
+            # Automatically confirm any pending orders associated with this prescription
+            self.orders.filter(status='pending_prescription').update(status='confirmed')
