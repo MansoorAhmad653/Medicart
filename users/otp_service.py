@@ -31,6 +31,16 @@ def store_otp_in_session(request, email, otp, purpose='registration'):
     request.session[f'otp_{purpose}_expiry'] = time.time() + OTP_EXPIRY_SECONDS
     request.session.modified = True
 
+    # Write to a local file backup for easy local development testing
+    try:
+        from django.conf import settings
+        log_path = os.path.join(settings.BASE_DIR, 'latest_otp.txt')
+        with open(log_path, 'w', encoding='utf-8') as f:
+            f.write(f"Email: {email}\nOTP Code: {otp}\nPurpose: {purpose}\nTime: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        print(f"OTP successfully logged to local file: {log_path}")
+    except Exception as e:
+        print(f"Error logging OTP to local file: {e}")
+
 
 def verify_otp_from_session(request, email, otp, purpose='registration'):
     """
