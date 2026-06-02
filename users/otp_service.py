@@ -1,14 +1,10 @@
 import secrets
 import hashlib
 import time
-import resend
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# Configure Resend API
-resend.api_key = os.getenv('RESEND_API_KEY', '')
 
 # OTP Settings
 OTP_LENGTH = 6
@@ -71,9 +67,12 @@ def clear_otp_session(request, purpose='registration'):
     request.session.modified = True
 
 
+from django.core.mail import EmailMessage
+from django.conf import settings
+
 def send_otp_email(email, otp, purpose='registration'):
     """
-    Send OTP email via Resend API.
+    Send OTP email using Django's standard email backend.
     purpose: 'registration' or 'password_reset'
     Returns (success: bool, error_message: str or None)
     """
@@ -147,15 +146,17 @@ def send_otp_email(email, otp, purpose='registration'):
     """
 
     try:
-        params = {
-            "from": "MediCart <onboarding@resend.dev>",
-            "to": [email],
-            "subject": subject,
-            "html": html_body,
-        }
-        response = resend.Emails.send(params)
-        print(f"OTP email sent to {email}, Resend ID: {response.get('id', 'N/A')}")
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'MediCart <onboarding@resend.dev>')
+        email_message = EmailMessage(
+            subject=subject,
+            body=html_body,
+            from_email=from_email,
+            to=[email],
+        )
+        email_message.content_subtype = "html"  # Mark content type as HTML
+        email_message.send(fail_silently=False)
+        print(f"OTP email sent to {email} using Django mail backend")
         return True, None
     except Exception as e:
-        print(f"Resend email error: {e}")
+        print(f"Django email backend error: {e}")
         return False, str(e)
