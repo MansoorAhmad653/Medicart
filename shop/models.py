@@ -30,7 +30,7 @@ class Medicine(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock_quantity = models.PositiveIntegerField(default=0)
     description = models.TextField()
-    image = models.ImageField(upload_to='medicines/', blank=True, null=True)
+    image = models.URLField(max_length=500, blank=True, null=True, help_text="Supabase image URL")
     requires_prescription = models.BooleanField(default=False)
     manufacturer = models.CharField(max_length=200, blank=True)
     dosage = models.CharField(max_length=100, blank=True)

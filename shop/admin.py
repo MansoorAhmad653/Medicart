@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from .models import Category, Medicine
+from .forms import MedicineForm
 
 
 @admin.register(Category)
@@ -20,11 +21,12 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Medicine)
 class MedicineAdmin(admin.ModelAdmin):
+    form = MedicineForm
     list_display = ('medicine_name', 'category', 'price', 'stock_badge', 'requires_prescription', 'is_active')
     list_filter = ('category', 'requires_prescription', 'is_active', 'created_at')
     search_fields = ('name', 'description', 'manufacturer')
     list_editable = ('price', 'is_active')
-    readonly_fields = ('created_at', 'updated_at', 'medicine_stats')
+    readonly_fields = ('created_at', 'updated_at', 'medicine_stats', 'image_preview')
     ordering = ['-created_at']
     
     fieldsets = (
@@ -37,22 +39,35 @@ class MedicineAdmin(admin.ModelAdmin):
         ('Medical Information', {
             'fields': ('requires_prescription', 'manufacturer', 'dosage')
         }),
+        ('Medicine Image (Supabase)', {
+            'fields': ('image_upload', 'image_preview', 'image'),
+            'description': '📸 <strong>Upload to Supabase Storage:</strong> Select an image file and it will be automatically uploaded to Supabase. The image URL will be stored in the database.',
+            'classes': ()
+        }),
         ('Status & Timestamps', {
             'fields': ('is_active', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
-        ('Media', {
-            'fields': ('image',),
-            'classes': ('collapse',)
-        }),
     )
+    
+    def image_preview(self, obj):
+        """Show image preview"""
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-width: 200px; max-height: 200px; border-radius: 5px; border: 1px solid #ddd;"/><br>'
+                '<small style="color: #666;">📋 URL: <code style="background-color: #f5f5f5; padding: 5px; border-radius: 3px;">{}</code></small>',
+                obj.image,
+                obj.image[:60] + '...' if len(obj.image) > 60 else obj.image
+            )
+        return format_html('<span style="color: #999;">No image uploaded</span>')
+    image_preview.short_description = 'Image Preview'
     
     def medicine_name(self, obj):
         if obj.image:
             return format_html(
                 '<img src="{}" style="width: 30px; height: 30px; margin-right: 10px; border-radius: 3px;"/>'
                 '<strong>{}</strong>',
-                obj.image.url,
+                obj.image,
                 obj.name
             )
         return format_html('<strong>{}</strong>', obj.name)

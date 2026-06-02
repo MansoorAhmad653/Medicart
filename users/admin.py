@@ -1,7 +1,7 @@
 from django.contrib import admin
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from django.urls import reverse
-from django.db.models import Count
+from django.db.models import Count, Sum
 from .models import CustomUser
 
 
@@ -69,7 +69,7 @@ class CustomUserAdmin(admin.ModelAdmin):
     def user_stats(self, obj):
         total_orders = obj.orders.count()
         total_spent = obj.orders.exclude(status='cancelled').aggregate(
-            total=__import__('django.db.models', fromlist=['Sum']).Sum('total_price')
+            total=Sum('total_price')
         )['total'] or 0
         
         return format_html(
@@ -100,7 +100,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             '<div style="background-color: #f0f7ff; padding: 10px; border-radius: 5px;">'
             '<strong>Recent Orders:</strong><br>{}'
             '</div>',
-            order_list
+            mark_safe(order_list)
         )
     order_info.short_description = 'Recent Orders'
     
