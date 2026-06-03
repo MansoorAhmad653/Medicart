@@ -55,8 +55,24 @@ class Medicine(models.Model):
     def is_in_stock(self):
         return self.stock_quantity > 0
 
+    @property
     def is_low_stock(self):
         return 0 < self.stock_quantity <= 10
+
+    def save(self, *args, **kwargs):
+        # Delete the old image from Supabase when the image is being replaced
+        if self.pk:
+            try:
+                old = Medicine.objects.get(pk=self.pk)
+                if old.image and old.image.name != self.image.name if self.image else True:
+                    # Old image exists and is different from the new one (or cleared)
+                    try:
+                        old.image.delete(save=False)
+                    except Exception:
+                        pass  # Don't block the save if delete fails
+            except Medicine.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
 
     def clean(self):
         super().clean()

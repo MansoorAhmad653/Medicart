@@ -181,9 +181,9 @@
             <span id="medCountLabel" class="text-muted small">Showing all {{ total_medicines }} medicines</span>
         </div>
 
-        <div class="table-responsive">
+        <div class="table-responsive" style="max-height:520px;overflow-y:auto;">
             <table class="table admin-table align-middle mb-0" id="medicinesTable">
-                <thead>
+                <thead style="position:sticky;top:0;z-index:1;background:#fff;">
                     <tr>
                         <th>Medicine</th>
                         <th>Category</th>
@@ -247,14 +247,11 @@
                 </tbody>
             </table>
         </div>
-
-        <!-- Show More / Less toggle -->
-        {% if total_medicines > 10 %}
-        <div class="text-center mt-3" id="showMoreContainer">
-            <button class="btn btn-outline-primary btn-sm px-4" id="showMoreBtn" onclick="toggleShowMore()">
-                <i class="bi bi-chevron-down me-1" id="showMoreIcon"></i>
-                <span id="showMoreText">Show More ({{ total_medicines|add:"-10" }} more)</span>
-            </button>
+        {% if total_medicines > 8 %}
+        <div class="text-center mt-3">
+            <a href="/admin/shop/medicine/" class="btn btn-outline-primary btn-sm px-4">
+                <i class="bi bi-list-ul me-1"></i>View All {{ total_medicines }} Medicines in Admin
+            </a>
         </div>
         {% endif %}
     </div>
@@ -305,51 +302,6 @@ new Chart(ctx, {
 });
 </script>
 <script>
-// ── Show More / Less ──────────────────────────────────────────────────────────
-const INITIAL_ROWS = 10;
-let showingAll = false;
-
-function applyRowVisibility() {
-    const rows = document.querySelectorAll('#medicinesTableBody .med-row');
-    let visibleCount = 0;
-    rows.forEach(row => {
-        if (!row.classList.contains('filtered-out')) {
-            visibleCount++;
-            if (!showingAll && visibleCount > INITIAL_ROWS) {
-                row.style.display = 'none';
-            } else {
-                row.style.display = '';
-            }
-        }
-    });
-    updateShowMoreBtn(visibleCount);
-}
-
-function updateShowMoreBtn(visibleCount) {
-    const container = document.getElementById('showMoreContainer');
-    if (!container) return;
-    const icon = document.getElementById('showMoreIcon');
-    const text = document.getElementById('showMoreText');
-    const hiddenCount = visibleCount - INITIAL_ROWS;
-    if (visibleCount <= INITIAL_ROWS) {
-        container.style.display = 'none';
-    } else {
-        container.style.display = '';
-        if (showingAll) {
-            icon.className = 'bi bi-chevron-up me-1';
-            text.textContent = 'Show Less';
-        } else {
-            icon.className = 'bi bi-chevron-down me-1';
-            text.textContent = 'Show ' + hiddenCount + ' More Medicine' + (hiddenCount !== 1 ? 's' : '');
-        }
-    }
-}
-
-function toggleShowMore() {
-    showingAll = !showingAll;
-    applyRowVisibility();
-}
-
 // ── Live Search & Status Filter ───────────────────────────────────────────────
 function filterMedicines() {
     const query = (document.getElementById('medSearchInput').value || '').toLowerCase().trim();
@@ -367,10 +319,9 @@ function filterMedicines() {
             (statusFilter === 'out'      && row.classList.contains('status-out'));
 
         if (matchesSearch && matchesStatus) {
-            row.classList.remove('filtered-out');
+            row.style.display = '';
             matchCount++;
         } else {
-            row.classList.add('filtered-out');
             row.style.display = 'none';
         }
     });
@@ -382,24 +333,6 @@ function filterMedicines() {
             ? 'Showing ' + matchCount + ' of ' + total + ' medicines'
             : 'Showing all ' + total + ' medicines';
     }
-
-    if (!query && !statusFilter) {
-        applyRowVisibility();
-    } else {
-        // When filtering, show all matching rows without the Show More limit
-        rows.forEach(row => {
-            if (!row.classList.contains('filtered-out')) {
-                row.style.display = '';
-            }
-        });
-        const container = document.getElementById('showMoreContainer');
-        if (container) container.style.display = 'none';
-    }
 }
-
-// Init: hide rows beyond INITIAL_ROWS on load
-document.addEventListener('DOMContentLoaded', function() {
-    applyRowVisibility();
-});
 </script>
 {% endblock %}
