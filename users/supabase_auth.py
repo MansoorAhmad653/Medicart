@@ -4,11 +4,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Load and validate environment variables for Supabase client
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError('Environment variables SUPABASE_URL and SUPABASE_KEY must be set')
+
 # Initialize Supabase client
-supabase: Client = create_client(
-    os.getenv('SUPABASE_URL'),
-    os.getenv('SUPABASE_KEY')
-)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_gmail_login_url(redirect_url: str = 'http://localhost:8000/users/auth-callback/'):
     """
@@ -23,7 +26,7 @@ def get_gmail_login_url(redirect_url: str = 'http://localhost:8000/users/auth-ca
     try:
         response = supabase.auth.sign_in_with_oauth({
             'provider': 'google',
-            'redirect_to': redirect_url
+            'options': {'redirect_to': redirect_url}
         })
         return response
     except Exception as e:

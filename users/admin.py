@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.utils.html import format_html, mark_safe
+from django.utils.html import format_html, mark_safe  # type: ignore
 from django.urls import reverse
 from django.db.models import Count, Sum
 from .models import CustomUser
@@ -37,7 +37,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             obj.name or obj.email,
             obj.email
         )
-    user_info.short_description = 'User'
+    user_info.short_description = 'User'  # type: ignore
     
     def role_badge(self, obj):
         colors = {
@@ -50,11 +50,11 @@ class CustomUserAdmin(admin.ModelAdmin):
             color,
             obj.get_role_display() if hasattr(obj, 'get_role_display') else obj.role.title()
         )
-    role_badge.short_description = 'Role'
+    role_badge.short_description = 'Role'  # type: ignore
     
     def joined_date(self, obj):
         return obj.date_joined.strftime('%d %b %Y')
-    joined_date.short_description = 'Joined'
+    joined_date.short_description = 'Joined'  # type: ignore
     
     def total_orders(self, obj):
         count = obj.orders.count()
@@ -64,7 +64,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             url,
             count
         )
-    total_orders.short_description = 'Orders'
+    total_orders.short_description = 'Orders'  # type: ignore
     
     def user_stats(self, obj):
         total_orders = obj.orders.count()
@@ -82,7 +82,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             total_spent,
             'Active' if obj.is_active else 'Inactive'
         )
-    user_stats.short_description = 'User Statistics'
+    user_stats.short_description = 'User Statistics'  # type: ignore
     
     def order_info(self, obj):
         from orders.models import Order
@@ -102,7 +102,7 @@ class CustomUserAdmin(admin.ModelAdmin):
             '</div>',
             mark_safe(order_list)
         )
-    order_info.short_description = 'Recent Orders'
+    order_info.short_description = 'Recent Orders'  # type: ignore
     
     def get_queryset(self, request):
         qs = super().get_queryset(request)
