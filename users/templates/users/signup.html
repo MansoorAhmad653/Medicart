@@ -146,19 +146,28 @@ async function createDjangoUserFromSupabase(email) {
     }
 }
 
-// IMPORTANT: Only auto-create user on NEW sign-in, NOT on page load
-// This prevents creating duplicate users from old sessions
+// Guard flag: only process a Supabase SIGNED_IN event when the user
+// explicitly clicked the Gmail button on THIS page load. This prevents
+// a stale Supabase session (from a previous OAuth flow) from firing
+// onAuthStateChange on page load and bypassing OTP verification.
+let gmailSignupInitiated = false;
+
 supabaseClient.auth.onAuthStateChange((event, session) => {
     console.log('Auth state changed:', event);
-    // Only trigger on actual new sign-in
-    if (event === 'SIGNED_IN' && session?.user?.email) {
-        console.log('New sign-in detected, creating/logging in user');
+    // Only act on a SIGNED_IN that was triggered by the Gmail button click
+    // on this page. Ignore any pre-existing session restored on page load.
+    if (event === 'SIGNED_IN' && session?.user?.email && gmailSignupInitiated) {
+        console.log('Gmail sign-in detected, routing through auth-callback for OTP check');
+        gmailSignupInitiated = false;
         createDjangoUserFromSupabase(session.user.email);
     }
 });
 
 async function signupWithGmail() {
     try {
+        // Set the flag BEFORE initiating OAuth so the onAuthStateChange
+        // listener knows this SIGNED_IN event was user-initiated.
+        gmailSignupInitiated = true;
         const { data, error } = await supabaseClient.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -167,10 +176,12 @@ async function signupWithGmail() {
         });
         
         if (error) {
+            gmailSignupInitiated = false;
             alert('Gmail signup failed: ' + error.message);
             console.error('OAuth error:', error);
         }
     } catch (err) {
+        gmailSignupInitiated = false;
         alert('An error occurred: ' + err.message);
         console.error('Exception:', err);
     }

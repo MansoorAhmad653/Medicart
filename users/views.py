@@ -19,7 +19,10 @@ def signup_view(request):
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
-            # Store the registration data in the session instead of the database
+            # IMPORTANT: Do NOT call form.save() here. The user must NOT be
+            # written to the database at this point. We only store the validated
+            # form data in the session and send an OTP. The account is created
+            # in verify_registration_otp_submit() AFTER the OTP is confirmed.
             signup_data = {
                 'email': form.cleaned_data['email'],
                 'name': form.cleaned_data['name'],
@@ -38,10 +41,11 @@ def signup_view(request):
                 print(f"Failed to send OTP email: {error}")
                 messages.warning(request, f"Unable to send verification email: {error}. However, you can retrieve your verification OTP code from the 'latest_otp.txt' file in your project directory.")
 
-            # Store email in session for verification page
+            # Store email in session for the OTP verification page
             request.session['pending_otp_email'] = signup_data['email']
             request.session['pending_otp_source'] = 'signup'
             messages.info(request, f'A verification code has been sent to {signup_data["email"]}.')
+            # Redirect to OTP page — no user has been created yet
             return redirect('users:verify_registration_otp')
         else:
             messages.error(request, 'Please correct the errors below.')
