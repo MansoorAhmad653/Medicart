@@ -152,9 +152,9 @@ if not DEBUG:
         'img-src': ("'self'", 'data:', 'https:'),
     }
 
-# CSRF Trusted Origins - Allow Railway domain
+# CSRF Trusted Origins - Allow Railway domains
 CSRF_TRUSTED_ORIGINS = [
-    'https://web-production-df5c71.up.railway.app',
+    'https://medicart.up.railway.app',
     'https://*.up.railway.app',
 ]
 
