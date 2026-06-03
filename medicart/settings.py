@@ -137,9 +137,11 @@ CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Security Settings for Production
-# NOTE: Railway already handles SSL at proxy level, so don't force redirect
+# NOTE: Railway already handles SSL at proxy level
 if not DEBUG:
-    # SECURE_SSL_REDIRECT = True  # DISABLED - Railway handles SSL
+    # Trust Railway's X-Forwarded-Proto header for HTTPS detection
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -150,12 +152,18 @@ if not DEBUG:
         'img-src': ("'self'", 'data:', 'https:'),
     }
 
+# CSRF Trusted Origins - Allow Railway domain
+CSRF_TRUSTED_ORIGINS = [
+    'https://web-production-df5c71.up.railway.app',
+    'https://*.up.railway.app',
+]
+
 # Email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp-relay.brevo.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'MediCart <ssgkhan653@gmail.com>')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@medicart.com')
 
