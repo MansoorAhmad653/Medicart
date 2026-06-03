@@ -43,14 +43,17 @@ class SignUpForm(UserCreationForm):
         return email
 
     def save(self, commit=True):
-        # NOTE: SignUpForm.save() must NEVER be called during the signup flow.
-        # User creation only happens in verify_registration_otp_submit(), after
-        # OTP verification succeeds. Raising here makes any accidental call
-        # immediately visible rather than silently creating an unverified account.
-        raise NotImplementedError(
-            "SignUpForm.save() is intentionally disabled. "
-            "Create the user in verify_registration_otp_submit() after OTP verification."
-        )
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        user.name = self.cleaned_data['name']
+        user.username = self.cleaned_data['email']
+        user.phone = self.cleaned_data.get('phone', '')
+        user.address = self.cleaned_data.get('address', '')
+        user.is_email_verified = True
+        user.is_active = True
+        if commit:
+            user.save()
+        return user
 
 
 class LoginForm(AuthenticationForm):
