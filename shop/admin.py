@@ -29,7 +29,7 @@ class MedicineAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'category', 'description')
+            'fields': ('name', 'category', 'description', 'image')
         }),
         ('Pricing & Inventory', {
             'fields': ('price', 'stock_quantity', 'medicine_stats')

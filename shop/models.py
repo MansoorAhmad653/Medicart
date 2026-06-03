@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
+from .supabase_storage import SupabaseStorage
 
 
 class Category(models.Model):
@@ -34,6 +35,7 @@ class Medicine(models.Model):
     requires_prescription = models.BooleanField(default=False)
     manufacturer = models.CharField(max_length=200, blank=True)
     dosage = models.CharField(max_length=100, blank=True)
+    image = models.ImageField(upload_to='medicines/', null=True, blank=True, storage=SupabaseStorage(bucket_name='medicines'))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True, db_index=True)
@@ -55,6 +57,33 @@ class Medicine(models.Model):
 
     def is_low_stock(self):
         return 0 < self.stock_quantity <= 10
+
+    def clean(self):
+        super().clean()
+        # Verify Supabase storage and RLS policies only when a new file is uploaded
+        if self.image and hasattr(self.image, 'file'):
+            from django.core.files.uploadedfile import UploadedFile
+            if isinstance(self.image.file, UploadedFile):
+                from django.core.exceptions import ValidationError
+                from .supabase_storage import SupabaseStorage
+                if isinstance(self.image.storage, SupabaseStorage):
+                    storage = self.image.storage
+                    try:
+                        # Test if bucket exists and is accessible using list() which doesn't require service_role key
+                        storage.client.storage.from_(storage.bucket_name).list()
+                    except Exception as e:
+                        err_msg = str(e)
+                        if "Bucket not found" in err_msg:
+                            raise ValidationError({
+                                'image': f"The Supabase storage bucket '{storage.bucket_name}' was not found. "
+                                         f"Please create a public bucket named '{storage.bucket_name}' in your Supabase dashboard."
+                            })
+                        else:
+                            raise ValidationError({
+                                'image': f"Failed to verify access to Supabase storage bucket '{storage.bucket_name}'. "
+                                         f"Please check that the SELECT policy is configured for public access. "
+                                         f"Error detail: {err_msg}"
+                            })
 
 
 class Cart(models.Model):

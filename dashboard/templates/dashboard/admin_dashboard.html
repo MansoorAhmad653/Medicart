@@ -84,7 +84,7 @@
                     </div>
                     <div class="quick-stat">
                         <div class="quick-stat-label">Total Medicines</div>
-                        <div class="quick-stat-value">{{ medicines|length }}</div>
+                        <div class="quick-stat-value">{{ total_medicines }}</div>
                     </div>
                     <div class="quick-stat">
                         <div class="quick-stat-label">Pending Prescriptions</div>
@@ -155,13 +155,34 @@
     <!-- Inventory -->
     <div class="dashboard-card">
         <div class="card-heading-row mb-3">
-            <h5><i class="bi bi-boxes me-2"></i>Inventory Overview</h5>
-            <a href="/admin/shop/medicine/" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-pencil me-1"></i>Manage Inventory
-            </a>
+            <h5><i class="bi bi-boxes me-2"></i>Inventory Overview <span class="badge bg-primary ms-2" style="font-size:0.75rem">{{ total_medicines }}</span></h5>
+            <div class="d-flex gap-2">
+                <a href="/admin/shop/medicine/add/" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Add Medicine
+                </a>
+                <a href="/admin/shop/medicine/" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-pencil me-1"></i>Manage All
+                </a>
+            </div>
         </div>
+
+        <!-- Search/Filter bar -->
+        <div class="mb-3 d-flex gap-2 align-items-center flex-wrap">
+            <div class="input-group" style="max-width:280px">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="medSearchInput" class="form-control border-start-0" placeholder="Search medicines..." oninput="filterMedicines()">
+            </div>
+            <select id="medStatusFilter" class="form-select form-select-sm" style="max-width:160px" onchange="filterMedicines()">
+                <option value="">All Status</option>
+                <option value="in-stock">In Stock</option>
+                <option value="low">Low Stock</option>
+                <option value="out">Out of Stock</option>
+            </select>
+            <span id="medCountLabel" class="text-muted small">Showing all {{ total_medicines }} medicines</span>
+        </div>
+
         <div class="table-responsive">
-            <table class="table admin-table align-middle mb-0">
+            <table class="table admin-table align-middle mb-0" id="medicinesTable">
                 <thead>
                     <tr>
                         <th>Medicine</th>
@@ -172,14 +193,26 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="medicinesTableBody">
                     {% for med in medicines %}
-                    <tr class="{% if med.stock_quantity == 0 %}table-danger{% elif med.is_low_stock %}table-warning{% endif %}">
+                    <tr class="med-row {% if med.stock_quantity == 0 %}table-danger status-out{% elif med.is_low_stock %}table-warning status-low{% else %}status-in-stock{% endif %}"
+                        data-name="{{ med.name|lower }}" data-category="{{ med.category.name|lower|default:'' }}">
                         <td>
-                            <div class="fw-500">{{ med.name }}</div>
-                            {% if med.requires_prescription %}<span class="badge bg-teal-light text-primary small">Rx</span>{% endif %}
+                            <div class="d-flex align-items-center gap-2">
+                                {% if med.image %}
+                                <img src="{{ med.image.url }}" alt="{{ med.name }}" style="width:36px;height:36px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0">
+                                {% else %}
+                                <div style="width:36px;height:36px;border-radius:8px;background:var(--teal-50,#f0faf7);display:flex;align-items:center;justify-content:center;border:1px solid #e2e8f0">
+                                    <i class="bi bi-capsule-pill text-muted" style="font-size:1rem"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <div class="fw-500">{{ med.name }}</div>
+                                    {% if med.requires_prescription %}<span class="badge bg-teal-light text-primary small">Rx</span>{% endif %}
+                                </div>
+                            </div>
                         </td>
-                        <td>{{ med.category.name|default:"—" }}</td>
+                        <td><span class="text-muted">{{ med.category.name|default:"—" }}</span></td>
                         <td class="fw-500">Rs. {{ med.price }}</td>
                         <td>
                             <div class="stock-indicator">
@@ -214,6 +247,16 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Show More / Less toggle -->
+        {% if total_medicines > 10 %}
+        <div class="text-center mt-3" id="showMoreContainer">
+            <button class="btn btn-outline-primary btn-sm px-4" id="showMoreBtn" onclick="toggleShowMore()">
+                <i class="bi bi-chevron-down me-1" id="showMoreIcon"></i>
+                <span id="showMoreText">Show More ({{ total_medicines|add:"-10" }} more)</span>
+            </button>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -259,6 +302,104 @@ new Chart(ctx, {
             x: { grid: { display: false } }
         }
     }
+});
+</script>
+<script>
+// ── Show More / Less ──────────────────────────────────────────────────────────
+const INITIAL_ROWS = 10;
+let showingAll = false;
+
+function applyRowVisibility() {
+    const rows = document.querySelectorAll('#medicinesTableBody .med-row');
+    let visibleCount = 0;
+    rows.forEach(row => {
+        if (!row.classList.contains('filtered-out')) {
+            visibleCount++;
+            if (!showingAll && visibleCount > INITIAL_ROWS) {
+                row.style.display = 'none';
+            } else {
+                row.style.display = '';
+            }
+        }
+    });
+    updateShowMoreBtn(visibleCount);
+}
+
+function updateShowMoreBtn(visibleCount) {
+    const container = document.getElementById('showMoreContainer');
+    if (!container) return;
+    const icon = document.getElementById('showMoreIcon');
+    const text = document.getElementById('showMoreText');
+    const hiddenCount = visibleCount - INITIAL_ROWS;
+    if (visibleCount <= INITIAL_ROWS) {
+        container.style.display = 'none';
+    } else {
+        container.style.display = '';
+        if (showingAll) {
+            icon.className = 'bi bi-chevron-up me-1';
+            text.textContent = 'Show Less';
+        } else {
+            icon.className = 'bi bi-chevron-down me-1';
+            text.textContent = 'Show ' + hiddenCount + ' More Medicine' + (hiddenCount !== 1 ? 's' : '');
+        }
+    }
+}
+
+function toggleShowMore() {
+    showingAll = !showingAll;
+    applyRowVisibility();
+}
+
+// ── Live Search & Status Filter ───────────────────────────────────────────────
+function filterMedicines() {
+    const query = (document.getElementById('medSearchInput').value || '').toLowerCase().trim();
+    const statusFilter = document.getElementById('medStatusFilter').value;
+    const rows = document.querySelectorAll('#medicinesTableBody .med-row');
+    let matchCount = 0;
+
+    rows.forEach(row => {
+        const name = (row.dataset.name || '').toLowerCase();
+        const category = (row.dataset.category || '').toLowerCase();
+        const matchesSearch = !query || name.includes(query) || category.includes(query);
+        const matchesStatus = !statusFilter ||
+            (statusFilter === 'in-stock' && row.classList.contains('status-in-stock')) ||
+            (statusFilter === 'low'      && row.classList.contains('status-low')) ||
+            (statusFilter === 'out'      && row.classList.contains('status-out'));
+
+        if (matchesSearch && matchesStatus) {
+            row.classList.remove('filtered-out');
+            matchCount++;
+        } else {
+            row.classList.add('filtered-out');
+            row.style.display = 'none';
+        }
+    });
+
+    const label = document.getElementById('medCountLabel');
+    if (label) {
+        const total = {{ total_medicines }};
+        label.textContent = (query || statusFilter)
+            ? 'Showing ' + matchCount + ' of ' + total + ' medicines'
+            : 'Showing all ' + total + ' medicines';
+    }
+
+    if (!query && !statusFilter) {
+        applyRowVisibility();
+    } else {
+        // When filtering, show all matching rows without the Show More limit
+        rows.forEach(row => {
+            if (!row.classList.contains('filtered-out')) {
+                row.style.display = '';
+            }
+        });
+        const container = document.getElementById('showMoreContainer');
+        if (container) container.style.display = 'none';
+    }
+}
+
+// Init: hide rows beyond INITIAL_ROWS on load
+document.addEventListener('DOMContentLoaded', function() {
+    applyRowVisibility();
 });
 </script>
 {% endblock %}

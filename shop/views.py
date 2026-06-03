@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Q, Prefetch
 from django.core.paginator import Paginator
+from django.core.cache import cache
 from .models import Medicine, Category
 from .forms import CheckoutForm
 from .cart_utils import get_cart_items, add_item, update_item, clear_cart, get_raw_cart_dict
@@ -11,13 +12,20 @@ DELIVERY_FEE = 150
 
 
 def home(request):
-    # Use select_related to avoid N+1 queries
-    featured = Medicine.objects.filter(
-        is_active=True, 
-        stock_quantity__gt=0
-    ).select_related('category')[:8]
+    # Use select_related to avoid N+1 queries and cache the result
+    featured = cache.get('home_featured_medicines')
+    if featured is None:
+        featured = list(Medicine.objects.filter(
+            is_active=True, 
+            stock_quantity__gt=0
+        ).select_related('category')[:8])
+        cache.set('home_featured_medicines', featured, 60 * 5)  # Cache for 5 minutes
     
-    categories = Category.objects.all()
+    categories = cache.get('shop_categories')
+    if categories is None:
+        categories = list(Category.objects.all())
+        cache.set('shop_categories', categories, 60 * 5)  # Cache for 5 minutes
+
     return render(request, 'shop/home.html', {
         'featured': featured,
         'categories': categories,
@@ -26,7 +34,11 @@ def home(request):
 
 def medicine_list(request):
     medicines = Medicine.objects.filter(is_active=True).select_related('category')
-    categories = Category.objects.all()
+    
+    categories = cache.get('shop_categories')
+    if categories is None:
+        categories = list(Category.objects.all())
+        cache.set('shop_categories', categories, 60 * 5)
 
     query = request.GET.get('q', '')
     category_slug = request.GET.get('category', '')
@@ -60,7 +72,8 @@ def medicine_list(request):
 
     selected_category = None
     if category_slug:
-        selected_category = Category.objects.filter(slug=category_slug).first()
+        # Search category in memory from already fetched categories list
+        selected_category = next((c for c in categories if c.slug == category_slug), None)
 
     return render(request, 'shop/medicine_list.html', {
         'medicines': medicines_page,
@@ -78,10 +91,11 @@ def medicine_list(request):
 
 def medicine_detail(request, pk):
     medicine = get_object_or_404(Medicine.objects.select_related('category'), pk=pk, is_active=True)
-    reviews = Feedback.objects.filter(medicine=medicine).select_related('user').order_by('-created_at')
+    reviews = list(Feedback.objects.filter(medicine=medicine).select_related('user').order_by('-created_at'))
+    num_reviews = len(reviews)
     avg_rating = 0
-    if reviews.exists():
-        avg_rating = sum(r.rating for r in reviews) / reviews.count()
+    if num_reviews > 0:
+        avg_rating = sum(r.rating for r in reviews) / num_reviews
     
     # Check prescription status if medicine requires prescription
     prescription_status = None
@@ -90,36 +104,25 @@ def medicine_detail(request, pk):
         can_buy = False
         if request.user.is_authenticated:
             from prescriptions.models import Prescription
-            prescription = Prescription.objects.filter(
+            # Consolidate approved, pending, rejected queries into a single query
+            user_prescriptions = list(Prescription.objects.filter(
                 user=request.user,
-                medicines=medicine,
-                status='approved'
-            ).first()
+                medicines=medicine
+            ).order_by('-uploaded_at'))
             
-            if prescription:
+            approved = next((p for p in user_prescriptions if p.status == 'approved'), None)
+            pending = next((p for p in user_prescriptions if p.status == 'pending'), None)
+            rejected = next((p for p in user_prescriptions if p.status == 'rejected'), None)
+            
+            if approved:
                 can_buy = True
                 prescription_status = {'status': 'approved', 'message': 'Prescription approved! You can add this to cart.'}
+            elif pending:
+                prescription_status = {'status': 'pending', 'message': 'Your prescription is pending approval. Please wait.'}
+            elif rejected:
+                prescription_status = {'status': 'rejected', 'message': f'Prescription rejected. Admin notes: {rejected.admin_notes}', 'prescription_id': rejected.id}
             else:
-                # Check if user has any prescription for this medicine (pending/rejected)
-                pending = Prescription.objects.filter(
-                    user=request.user,
-                    medicines=medicine,
-                    status='pending'
-                ).first()
-                
-                if pending:
-                    prescription_status = {'status': 'pending', 'message': 'Your prescription is pending approval. Please wait.'}
-                else:
-                    rejected = Prescription.objects.filter(
-                        user=request.user,
-                        medicines=medicine,
-                        status='rejected'
-                    ).first()
-                    
-                    if rejected:
-                        prescription_status = {'status': 'rejected', 'message': f'Prescription rejected. Admin notes: {rejected.admin_notes}', 'prescription_id': rejected.id}
-                    else:
-                        prescription_status = {'status': 'no_prescription', 'message': 'Please upload a valid prescription to buy this medicine.'}
+                prescription_status = {'status': 'no_prescription', 'message': 'Please upload a valid prescription to buy this medicine.'}
     
     return render(request, 'shop/medicine_detail.html', {
         'medicine': medicine,

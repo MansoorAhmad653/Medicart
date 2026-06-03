@@ -18,10 +18,8 @@ def get_cart_items(request):
 def get_cart_count(request):
     """Total number of units in the cart (for navbar badge)."""
     if request.user.is_authenticated:
-        cart = Cart.objects.filter(user=request.user).first()
-        if cart:
-            return cart.get_item_count()
-        return 0
+        from django.db.models import Sum
+        return CartItem.objects.filter(cart__user=request.user).aggregate(total=Sum('quantity'))['total'] or 0
     session_cart = request.session.get('cart', {})
     return sum(item['quantity'] for item in session_cart.values())
 
@@ -103,25 +101,20 @@ def merge_session_cart_to_db(request):
 # ── Internal: DB-backed helpers ───────────────────────────────────────────────
 
 def _db_cart_items(user):
-    cart = Cart.objects.filter(user=user).prefetch_related('items__medicine__category').first()
-    if not cart:
-        return []
+    items = CartItem.objects.filter(cart__user=user).select_related('medicine', 'medicine__category')
     result = []
-    for ci in cart.items.select_related('medicine', 'medicine__category').all():
+    for ci in items:
         result.append({
             'medicine': ci.medicine,
             'quantity': ci.quantity,
-            'item_total': ci.item_total(),
+            'item_total': ci.medicine.price * ci.quantity,
         })
     return result
 
 
 def _db_update(user, medicine_pk, action):
-    cart = Cart.objects.filter(user=user).first()
-    if not cart:
-        return None
     try:
-        item = CartItem.objects.select_related('medicine').get(cart=cart, medicine_id=medicine_pk)
+        item = CartItem.objects.select_related('medicine').get(cart__user=user, medicine_id=medicine_pk)
     except CartItem.DoesNotExist:
         return None
 

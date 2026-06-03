@@ -41,7 +41,8 @@ def admin_dashboard(request):
         week_data.append(count)
 
     recent_orders = Order.objects.select_related('user').prefetch_related('items')[:20]
-    medicines = Medicine.objects.select_related('category').order_by('stock_quantity')[:20]
+    medicines = list(Medicine.objects.select_related('category').order_by('stock_quantity'))
+    total_medicines = len(medicines)
     total_users = CustomUser.objects.filter(role='customer').count()
 
     # Handle status update
@@ -61,6 +62,7 @@ def admin_dashboard(request):
         'pending_prescriptions': pending_prescriptions,
         'low_stock': low_stock,
         'total_users': total_users,
+        'total_medicines': total_medicines,
         'recent_orders': recent_orders,
         'medicines': medicines,
         'week_labels': json.dumps(week_labels),

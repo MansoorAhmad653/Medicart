@@ -111,7 +111,7 @@
                     <div class="medicine-card h-100">
                         <a href="{% url 'shop:medicine_detail' medicine.pk %}" class="medicine-img-wrap">
                             {% if medicine.image %}
-                            <img src="{{ medicine.image }}" alt="{{ medicine.name }}" class="medicine-img">
+                            <img src="{{ medicine.image.url }}" alt="{{ medicine.name }}" class="medicine-img">
                             {% else %}
                             <div class="medicine-img-placeholder">
                                 <i class="bi bi-capsule-pill"></i>

@@ -161,7 +161,7 @@ def send_otp_email(email, otp, purpose='registration'):
     """
 
     try:
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'MediCart <onboarding@resend.dev>')
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'MediCart <ssgkhan653@gmail.com>')
         email_message = EmailMessage(
             subject=subject,
             body=html_body,
@@ -169,9 +169,17 @@ def send_otp_email(email, otp, purpose='registration'):
             to=[email],
         )
         email_message.content_subtype = "html"  # Mark content type as HTML
-        email_message.send(fail_silently=False)
-        print(f"OTP email sent to {email} using Django mail backend")
-        return True, None
+        result = email_message.send(fail_silently=False)
+        
+        if result == 1:
+            print(f"✓ OTP email successfully sent to {email} for {purpose}")
+            return True, None
+        else:
+            print(f"✗ Failed to send OTP email to {email}")
+            return False, "Failed to send email. Please contact support."
     except Exception as e:
-        print(f"Django email backend error: {e}")
-        return False, str(e)
+        error_msg = str(e)
+        print(f"✗ Email sending error for {email}: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return False, error_msg
